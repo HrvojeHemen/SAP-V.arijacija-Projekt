@@ -6,13 +6,164 @@ output: pdf_document
 ```{r setup, include=FALSE}
 
 imdb <- read.csv(file = 'IMDB.csv')
-
-summary(imdb)
+library(tidyr)
+library(tidyverse)
 
 ```
+
+##Imaju li neki žanrovi značajno različite ocjene na IMDB-u?
+Kod ove hipoteze zanima nas postoji li neka značajna razlika kod ocjena različitih žanrova na IMDB-u.
+Za početak ćemo pogledati koliko podataka nema zapisane ocjene ili niti jedan žanr u našoj tablici.
+
+```{r}
+sum(is.na(imdb$genres))
+sum(is.na(imdb$imdb_score))
+```
+
+Vidimo da svi filmovi imaju zapisane žanrove i ocjene tako da možemo krenuti u analizu podataka.
+Nakon što smo provjerili postoje li sve vrijednosti za sve filmove moramo svaki redak razdvojiti na više njih ovisno o njegovom broju žanrova.
+Ovo radimo kako bismo mogli napraviti stupčasti dijagram i promatrati vrijednosti za pojedine žanrove.
+
+```{r}
+imdbSep <- separate_rows(imdb, genres, sep = "\\|")
+```
+
+Pogledajmo prvo koliko imamo žanrova u našem skupu podataka.
+
+```{r}
+numGenres <- length(unique(imdbSep$genres))
+cat("Number of genres: ", numGenres, "\n")
+```
+
+Pogledajmo sada koliko određeni žanr ima snimljenih filmova.
+```{r}
+imdbSep %>% group_by(genres) %>% summarise(number_of_movies = length(unique(movie_title))) -> grupa
+grupa
+```
+Možemo vidjeti kako žanrovi "Film-Noir", "Game-Show", "News", "Reality-TV" i "Short"imaju 6 ili manje snimljenih filmova.
+To je veoma mali broj u odnosu na ostatak žanrova te zato odbacujemo ove žanrove iz daljnje analize zbog premalog broja podataka.
+
+```{r}
+row.genres.remove <- c("Film-Noir", "Game-Show", "News", "Reality-TV","Short")
+
+genres_edited <- imdbSep[!(imdbSep$genres %in% row.genres.remove), ]
+genres_edited %>% group_by(genres) %>% summarise(number_of_movies = length(movie_title)) -> grupa
+
+grupa
+
+```
+Nakon što smo izbacili one žanrove s malim brojem snimljenih filmova možemo pogledati prosječne ocjene uz pojedini žanr.
+Za mjeru centra koristili smo aritmetičku sredinu. 
 
 ```{r}
 
+genres_edited %>% group_by(genres) %>% summarise(AVG_imdb_rating = mean(imdb_score)) -> summary.result.avg
 
+##postavljanje podataka na barplot
+data_bar <- summary.result.avg$AVG_imdb_rating
+names(data_bar) <- summary.result.avg$genres
+
+##uredjivanje margina
+par(mar=c(7.5, 4.1, 4.1, 2.1), font.axis = 2, font.lab =  2)
+
+barplot(data_bar, 
+        main="Prosječna ocjena filmova za pojedine žanrove",
+        ylab = "Prosječna ocjena [0-10]",
+        las = 2, col="lightblue")
+```
+
+Gore dobiveni dijagram jako podsjeća na uniformnu distribuciju. Pogledajmo sada standardne devijacije za pojedini žanr.
+
+```{r}
+genres_edited %>% group_by(genres) %>% summarise(AVG_imdb_rating = sd(imdb_score)) -> summary.result.sd
+
+data_bar <- summary.result.sd$AVG_imdb_rating
+names(data_bar) <- summary.result.sd$genres
+
+par(mar=c(7.5, 4.1, 4.1, 2.1), font.axis = 2, font.lab =  2)
+
+barplot(data_bar, 
+        main="Standardna devijacija ocjena filmova za pojedine žanrove",
+        ylab = "Standardna devijacija",
+        las = 2, col="lightblue")
 
 ```
+Vidimo kako samo žanr "Biography" značajnije odstupa od drugih standardnih varijacija.
+Ovo nas navodi na činjenicu da ne postoji značajna razlika u ocjenama između pojedinih žanrova.
+U nastavku ćemo testirati našu hipotezu. Promtoriti ćemo prosječne ocjene kod filmova koji pripadaju žanrovima "Biography" i "Horror".
+
+```{r}
+biography <- genres_edited[genres_edited$genres=="Biography",]
+horror <- genres_edited[genres_edited$genres=="Horror",]
+
+#Izdvajamo samo stupce sa imenima filmova i ocjenama
+biography <- biography[c(12,26)]
+horror <- horror[c(12,26)]
+
+
+##Provjera postoje li filmovi koji su ujedno i Biography i Horror
+biography.movie_titles <- biography["movie_title"]
+horror.movie_titles <- horror["movie_title"]
+remove.list <-Reduce(intersect, list(biography.movie_titles, horror.movie_titles))
+
+cat("Broj filmova koji pripadju žanrovima \"Horror\" i \"Biography\": ", nrow(remove.list))
+```
+Vidimo da samo 1 film pripada u oba žanra te zbog pretpostavke nezavisnosti koju ćemo koristiti u našem testu odbaciti ćemo ovaj podatak.
+
+```{r}
+biography <- biography[!(biography$movie_title %in% remove.list), ]
+horror <- horror[!(horror$movie_title %in% remove.list), ]
+```
+
+Sada kada smo dobili nezavisne podatke potrebno je provjeriti dolaze li podaci iz normalne razdiobe. Ovo ćemo napraviti uz pomoć QQ-plota.
+
+```{r}
+# QQ plot za ocjene zanra biography
+qqnorm(biography$imdb_score, pch = 1, frame = FALSE,main='Ocjene zanra biography')
+qqline(biography$imdb_score, col = "blue", lwd = 2)
+
+# QQ plot za ocjene zanra horror
+qqnorm(horror$imdb_score, pch = 1, frame = FALSE,main='Ocjene zanra horror')
+qqline(horror$imdb_score, col = "blue", lwd = 2)
+
+```
+Iz QQ-plota možemo vidjeti kako ocjene za žanr "Horror" dolaze iz normalne razdiobe, no isto ne možemo reći i za žanr "Biography".
+Pogledajmo imamo li veći broj stršećih vrijednosti koje utječu na ovaj rezultat
+
+```{r}
+boxplot(biography$imdb_score, horror$imdb_score,
+        names=c("Biography IMDB score", "Horror IMDB score"),
+        main = "Boxplot of IMDB scores")
+```
+Možemo vidjeti kako imamo dosta stršećih vrijednosti kod žanra "Biography" te ih zato uklanjamo kako bi dobili bolju pretpostavku normalnosti.
+
+```{r}
+biography.edited <- biography[!biography$imdb_score %in% boxplot.stats(biography$imdb_score)$out,]
+biography.edited
+```
+
+Pogledajmo sada podatke na QQ-plotu.
+```{r}
+qqnorm(biography.edited$imdb_score, pch = 1, frame = FALSE,main='Ocjene zanra biography')
+qqline(biography.edited$imdb_score, col = "blue", lwd = 2)
+```
+
+Sada kada smo postigli normalnost i nezavisnost ocjena za žanrove "Biography" i "Horror" možemo krenuti provoditi test.
+
+$$1) \quad H_0 \quad \dots \quad  Prosječna \ ocjena \ žanra \ Biography \ je \ jednaka \ ocjeni \ žanra \ Horror $$ $$ \mu_1 = \mu_2 $$
+$$2) \quad H_1 \quad \dots \quad  Prosječna \ ocjena \ žanra \ Biography \ nije \ jednaka \ ocjeni \ žanra \ Horror $$ $$ \mu_1 \neq \mu_2 $$
+$$3) \quad \alpha = 0.05$$
+Prije nego krenemo s provođenjem testa moramo provjeriti jesu li varijance naših podataka jednake kako bi znali provest odgovarajući t-test.
+$$1) \quad H_0 \quad \dots \quad  Varijance \ distribucija \ se \ ne \ razlikuju$$ $$ \sigma_1 = \sigma_2$$
+$$2) \quad H_1 \quad \dots \quad  Varijance \ distribucija \ se \ razlikuju$$ $$ \sigma_1 \neq \sigma_2$$
+$$3) \quad \alpha = 0.05$$
+```{r}
+var.test(biography$imdb_score, horror$imdb_score)
+```
+Zbog jako male p-vrijednosti zaključujemo da na razini značajnosti od 5% varijance nisu jednake. Nakon toga provodimo t-test za za različite varijance. 
+
+```{r}
+t.test(biography.edited$imdb_score, horror$imdb_score, alt = "two.sided", var.equal = FALSE)
+```
+Možemo vidjeti kako je p-vrijednost izrazito mala te iz tog razloga odbacujemo hipotezu $H_0$ u korist $H_1$ te zaključujemo da na ovoj razini značajnosti sredine ocjena za žanrove "Biography" i "Horror" nisu jednake. 
+Tako se naša pretpostavka s početka da su prosječne ocjene za različite žanrove jednake ispostavila netočnom što prvotno stupčasti dijagram nije sugerirao.
