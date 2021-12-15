@@ -1,0 +1,102 @@
+---
+title: "financiranja.rmd"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+imdb <- read.csv(file = 'IMDB.csv')
+library(tidyr)
+library(tidyverse)
+```
+#Dobivaju li americki filmovi veca financiranja od filmova drugih zemalja
+
+
+#Prebrojimo koliko Americkih filmova za svoj budget ima NA
+```{r}
+americkiFilmovi <- imdb[imdb$country == "USA",]$budget/1000000
+
+cat("Broj Americkih filmova : ", length(americkiFilmovi), "\n")
+cat("Broj NA vrijednosti: ", sum(is.na(americkiFilmovi)), "\n")
+
+```
+#Vidimo da je manje od 20% te cemo te redke sada maknuti
+```{r}
+americkiFilmovi <- na.omit(americkiFilmovi)
+cat("Broj Americkih filmova bez NA redaka: ", length(americkiFilmovi), "\n")
+```
+
+
+
+
+```{r}
+neAmerickiFilmovi <- imdb[imdb$country != "USA",]$budget/1000000
+
+cat("Broj ne Americkih filmova : ", length(neAmerickiFilmovi), "\n")
+cat("Broj NA vrijednosti: ", sum(is.na(neAmerickiFilmovi)), "\n")
+
+```
+#Ovdje je takoder tih redaka manje od 20% te cemo te redke takoder sada maknuti
+
+```{r}
+neAmerickiFilmovi <- na.omit(neAmerickiFilmovi)
+cat("Broj Ne Americkih filmova bez NA redaka: ", length(neAmerickiFilmovi), "\n")
+```
+
+#Micemo outliere iz vektora
+
+```{r}
+americkiFilmoviOutliers <- boxplot(americkiFilmovi, plot=FALSE)$out
+americkiFilmovi <- americkiFilmovi[-which(americkiFilmovi %in% americkiFilmoviOutliers)]
+
+
+neAmerickiFilmoviOutliers <- boxplot(neAmerickiFilmovi, plot=FALSE)$out
+neAmerickiFilmovi <- neAmerickiFilmovi[-which(neAmerickiFilmovi %in% neAmerickiFilmoviOutliers)]
+
+
+```
+
+#Sada cemo vizualizirati te podatke da vidimo dolaze li iz normalne razdiobe
+```{r}
+
+qqnorm(americkiFilmovi, pch = 1, frame = FALSE,main='Financiranje Americkih filmova ')
+qqline(americkiFilmovi, col = "blue", lwd = 2)
+
+
+qqnorm(neAmerickiFilmovi, pch = 1, frame = FALSE,main='Financiranje Ne Americkih filmova ')
+qqline(neAmerickiFilmovi, col = "blue", lwd = 2)
+
+
+boxplot(americkiFilmovi)
+
+
+```
+
+
+
+
+
+
+```{r}
+cat("Srednja vrijednost Americkih Filmova: ", mean(americkiFilmovi), "\n")
+cat("Srednja vrijednost ne Americkih Filmova: ", mean(neAmerickiFilmovi), "\n")
+
+cat("Standardna devijacija Americkih Filmova: ", sd(americkiFilmovi), "\n")
+cat("Standardna devijacija ne Americkih Filmova: ", sd(neAmerickiFilmovi), "\n")
+
+```
+#Sada cemo provesti i F test za varijance iz kojega vidimo da je p value skoro pa i 0 te iz toga zakljucujemo da se varijance uistinu razlikuju
+
+```{r}
+
+var.test(americkiFilmovi,neAmerickiFilmovi)
+
+```
+#Sada postavimo hipoteze, H0... Americki filmovi imaju jednak budzet kao i ne Americki -> mi1 = mi2, d0 = 0
+#                         H1... Americki filmovi imaju veci budzet -> mi1 > mi2, d0 > 0
+#                         alfa = 5%
+```{r}
+
+t.test(americkiFilmovi, neAmerickiFilmovi, alternative = "greater", var.equal = FALSE)
+
+```
+#Hipoteza H0 se odbija jer je p vrijednost manja od alfe
