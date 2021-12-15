@@ -167,3 +167,99 @@ t.test(biography.edited$imdb_score, horror$imdb_score, alt = "two.sided", var.eq
 ```
 Možemo vidjeti kako je p-vrijednost izrazito mala te iz tog razloga odbacujemo hipotezu $H_0$ u korist $H_1$ te zaključujemo da na ovoj razini značajnosti sredine ocjena za žanrove "Biography" i "Horror" nisu jednake. 
 Tako se naša pretpostavka s početka da su prosječne ocjene za različite žanrove jednake ispostavila netočnom što prvotno stupčasti dijagram nije sugerirao.
+
+
+##################
+
+Možemo li temeljem danih varijabli predvidjeti zaradu filmova?
+Trebamo provjeriti postoji li veza između nekih varijabli i zarade(gross) filma.
+Za to ćemo koristiti linearnu regresiju.
+Prvo ćemo provjeriti vezu između zarade i budžeta filma.
+Prije crtanja dijagrama raspršenja uklanjamo stršeće vrijednosti.
+
+```{r fig.align="center", out.width="50%"}
+imdb <- read.csv(file = 'IMDB.csv')
+library(tidyr)
+
+imdb <- imdb[!is.na(imdb$gross),]
+imdb <- imdb[!is.na(imdb$budget),]
+
+outliersbudget <- boxplot(imdb$budget, plot=FALSE)$out
+imdb <- imdb[-which(imdb$budget %in% outliersbudget),]
+outliersgross <- boxplot(imdb$gross, plot=FALSE)$out
+imdb <- imdb[-which(imdb$gross %in% outliersgross),]
+
+budget <- imdb$budget/1000000
+gross <- imdb$gross/1000000
+
+
+col1 <- "#3CAEA365"
+
+plot(gross,
+     budget,
+     col=c(col1),
+     main="Dijagram raspršenja za zaradu i budžet", 
+     xlab="Gross (million dollars)",
+     ylab="Budget (million dollars)")
+
+
+
+```
+Iz dijagrama raspršenja vidimo da ne postoji veza između budžeta i zarade.
+
+Sada ćemo provjeriti vezu između zarade i
+broja korisnika koji su ocijenili film.
+```{r fig.align="center", out.width="50%"}
+library(tidyr)
+
+imdb <- imdb[!is.na(imdb$gross),]
+imdb <- imdb[!is.na(imdb$num_voted_users),]
+
+outlierssc <- boxplot(imdb$num_voted_users, plot=FALSE)$out
+imdb <- imdb[-which(imdb$num_voted_users %in% outlierssc),]
+
+outliersgross <- boxplot(imdb$gross, plot=FALSE)$out
+imdb <- imdb[-which(imdb$gross %in% outliersgross),]
+
+numvotedus <- imdb$num_voted_users
+gross <- imdb$gross/1000000
+
+
+col1 <- "#3CAEA365"
+
+plot(gross,
+     numvotedus,
+     col=c(col1),
+     main="Dijagram raspršenja za zaradu i 
+     broj korisnika koji su ocijenili film", 
+     xlab="Gross (million dollars)",
+     ylab="Number of voted users")
+
+
+
+```
+Niti ovdje nismo uspjeli pronaći vezu.
+
+Sada ćemo provjeriti korelaciju između zarade i još nekih varijabli koje bi 
+potencijalno mogle s njom imati vezu.
+```{r}
+
+library(tidyr)
+imdb <- imdb[!is.na(imdb$gross),]
+imdb <- imdb[!is.na(imdb$num_voted_users),]
+imdb <- imdb[!is.na(imdb$movie_facebook_likes),]
+imdb <- imdb[!is.na(imdb$cast_total_facebook_likes),]
+imdb <- imdb[!is.na(imdb$imdb_score),]
+
+gross <- imdb$gross
+num_voted_users <- imdb$num_voted_users
+movie_facebook_likes <- imdb$movie_facebook_likes
+cast_total_facebook_likes <- imdb$cast_total_facebook_likes
+imdb_score <- imdb$imdb_score
+
+cat("Matrica korelacija\n")
+cor(cbind(gross,num_voted_users,movie_facebook_likes,cast_total_facebook_likes,
+          imdb_score))
+```
+Iz matrice vidimo da zarada nema vezu niti s jednom varijablom.
+
