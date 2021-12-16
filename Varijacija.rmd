@@ -261,7 +261,23 @@ cat("Matrica korelacija\n")
 cor(cbind(gross,num_voted_users,movie_facebook_likes,cast_total_facebook_likes,
           imdb_score))
 ```
-Iz matrice vidimo da zarada nema vezu niti s jednom varijablom.
+Iz matrice vidimo da zarada nema vezu niti s jednom od ovih varijabli.
+Što možemo vidjeti i iz dijagrama raspršenja:
+
+```{r scatter plots}
+
+plot(imdb$imdb_score,imdb$gross/1000000) 
+
+plot(imdb$cast_total_facebook_likes,imdb$gross/1000000) 
+
+plot(imdb$movie_facebook_likes,imdb$gross/1000000) 
+
+plot(imdb$num_voted_users,imdb$gross/1000000) 
+
+```
+Treba provjeriti vezu zarade s kategorijskim varijjablama.
+
+############
 
 
 ## Možemo li što zaključiti iz podataka o Facebook lajkovima glavnih glumaca, redatelja te samog filma?
