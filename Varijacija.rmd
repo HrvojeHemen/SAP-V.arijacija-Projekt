@@ -10,9 +10,29 @@ library(tidyr)
 library(tidyverse)
 
 ```
+# Uvod
 
-##Imaju li neki žanrovi značajno različite ocjene na IMDB-u?
-Kod ove hipoteze zanima nas postoji li neka značajna razlika kod ocjena različitih žanrova na IMDB-u.
+\indent{} Za ovu analizu podataka koristit ćemo skup podataka o filmovima s IMDB-a
+
+```{r imdb}
+nrow(imdb)
+```
+Možemo vidjeti kako ovaj skup podtaka sadrži opise 5044 filmova. Kategorički podaci koje nam ovaj skup podataka pruža su žanr filma, glavni glumci,redatelj filma, mjesto snimanja filma i drugi. Neki od metričkih podataka su zarada filma, ocjena filma na IMDB-u, budžet filma i drugi.
+
+```{r}
+summary(imdb)
+```
+Pogledajmo prvo pregled vrijednosti iz tablice za sve stupce. Većina stupaca sadrži jako malo nepostojećih vrijednosti osim stupca sa zaradom filmova koji sadrži 884 nepostojeće vrijednosti što je gotovo 20% ukupnog broja filmova te zaključci koje bismo donijeli na temelju tih podataka ne bi najbolje prikazivali stvarnu sliku.
+
+# Deskriptivna analiza nekih podataka
+
+## Žanrovi filmova i njihove ocjene
+Pogledajmo prvo jesu li podaci za ocjene ispravno učitani
+
+```{r}
+cat("Type: ", class(imdb$imdb_score))
+```
+Podaci su ispravno učitani te možemo nastaviti s analizom.
 Za početak ćemo pogledati koliko podataka nema zapisane ocjene ili niti jedan žanr u našoj tablici.
 
 ```{r}
@@ -20,7 +40,7 @@ sum(is.na(imdb$genres))
 sum(is.na(imdb$imdb_score))
 ```
 
-Vidimo da svi filmovi imaju zapisane žanrove i ocjene tako da možemo krenuti u analizu podataka.
+Vidimo kako nema nepostojećih vrijednosti.
 Nakon što smo provjerili postoje li sve vrijednosti za sve filmove moramo svaki redak razdvojiti na više njih ovisno o njegovom broju žanrova.
 Ovo radimo kako bismo mogli napraviti stupčasti dijagram i promatrati vrijednosti za pojedine žanrove.
 
@@ -88,18 +108,93 @@ barplot(data_bar,
         las = 2, col="lightblue")
 
 ```
-Vidimo kako samo žanr "Biography" značajnije odstupa od drugih standardnih varijacija.
-Ovo nas navodi na činjenicu da ne postoji značajna razlika u ocjenama između pojedinih žanrova.
+Vidimo kako samo žanr "Biography" značajnije odstupa od drugih standardnih varijacija, no i dalje možemo pretpostaviti kako se radi o uniformnoj distribuciji.
+
+
+## Trajanje filma
+Podaci za trajanje filma dani su u minutama. Pogledajmo prvo jesu li podaci ispravno učitani i maknimo nepostojeće vrijednosti.
+
+```{r}
+duration <- imdb$duration
+duration <- duration[!is.na(duration)]
+cat("Type: ", class(duration), "\n")
+```
+
+Vidimo da su podaci ispravno zapisani u obliku integera. Sada možemo nastaviti s analizom.
+Prvo ćemo pogledati histogram i pravokutni dijagram.
+
+```{r}
+# Histogram
+
+hist(duration,
+     breaks=20,
+     main="Film's duration in minutes",
+     xlab="Duration (min)",
+     ylab='Frequency' )
+
+# Pravokutni dijagram
+
+boxplot(duration,
+        main="Box and whisker plot for duration",
+        ylab="Duration (min)")
+
+
+```
+Možemo vidjeti kako ovaj skup podataka i nije baš najzahvalniji za prikaz pomoću stupčastog dijagrama jer je rang ovog skupa podataka dosta velik te imamo jako puno stršećih vrijednosti. Međutim možemo pretpostaviti kako ova distribucija nalikuje na multimodalnu.
+
+```{r}
+cat("Rang je: ", max(duration) - min(duration))
+```
+Pogledajmo sada mjere centra.
+```{r}
+
+# Medijan
+cat("Median: ",median(duration),"\n")
+
+# Podrezana aritmetička sredina s uklanjanjem po 10% najmanjih i najvecih podataka
+cat("10% trimmed mean: ", mean(duration, trim=0.1), "\n")
+
+# Aritmeticka sredina
+cat("Mean: ",mean(duration),"\n")
+
+# Mod
+cat("Mod: ",mfv(duration),"\n")
+
+```
+Zbog velikog broja stršećih vrijednosti najbolji pokazatelj centra je mod koji je robusan i neosjetljiv na ekstreme kojih u ovom skupu podataka ima jako mnogo.
+Nadalje pogledajmo mjere rasipanja.
+
+```{r}
+# IQR
+cat("IQR: ",IQR(duration),"\n")
+
+# Varijanca
+cat("Variance: ",var(duration),"\n")
+
+# Standardna devijacija
+cat("Standard deviation: ",sd(duration),"\n")
+
+# Koeficijent varijacije
+cat("Variation coefficient: ",sd(duration)/mean(duration),"\n")
+
+```
+Ovdje je zanimljivo pogledati interkvartilni rang koji je izuzetno mali u odnosu na rang cijelog skupa podataka. Iznosi tek 25 što je i očekivano
+s obzirom da većina filmova traje od otprlike 90 do 120 minuta. Upravo odavdje dolazi velik broj stršećih vrijednosti.
+
+
+# Testiranje Hipoteza
+
+##Imaju li neki žanrovi značajno različite ocjene na IMDB-u?
+Kod ove hipoteze zanima nas postoji li neka značajna razlika kod ocjena različitih žanrova na IMDB-u.
 U nastavku ćemo testirati našu hipotezu. Promtoriti ćemo prosječne ocjene kod filmova koji pripadaju žanrovima "Biography" i "Horror".
 
 ```{r}
 biography <- genres_edited[genres_edited$genres=="Biography",]
 horror <- genres_edited[genres_edited$genres=="Horror",]
 
-#Izdvajamo samo stupce sa imenima filmova i ocjenama
-biography <- biography[c(12,26)]
-horror <- horror[c(12,26)]
-
+#Izdvajamo samo stupce sa zanrovima, imenima filmova i ocjenama
+biography <- biography[c(10,12,26)]
+horror <- horror[c(10,12,26)]
 
 ##Provjera postoje li filmovi koji su ujedno i Biography i Horror
 biography.movie_titles <- biography["movie_title"]
@@ -169,9 +264,7 @@ Možemo vidjeti kako je p-vrijednost izrazito mala te iz tog razloga odbacujemo 
 Tako se naša pretpostavka s početka da su prosječne ocjene za različite žanrove jednake ispostavila netočnom što prvotno stupčasti dijagram nije sugerirao.
 
 
-##################
-
-Možemo li temeljem danih varijabli predvidjeti zaradu filmova?
+## Možemo li temeljem danih varijabli predvidjeti zaradu filmova?
 Trebamo provjeriti postoji li veza između nekih varijabli i zarade(gross) filma.
 Za to ćemo koristiti linearnu regresiju.
 Prvo ćemo provjeriti vezu između zarade i budžeta filma.
