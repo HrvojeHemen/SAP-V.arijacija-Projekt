@@ -1,0 +1,335 @@
+---
+title: "Facebook Likes"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Možemo li što zaključiti iz podataka o Facebook lajkovima glavnih glumaca, redatelja te samog filma?
+
+```{r}
+cat('No. of NA values in column Movie Facebook Likes:', sum(is.na(imdb$movie_facebook_likes)), '\n')
+cat('No. of NA values in column Director Facebook Likes:', sum(is.na(imdb$director_facebook_likes)), '\n')
+cat('No. of NA values in column Actor1 Facebook Likes:', sum(is.na(imdb$actor_1_facebook_likes)), '\n')
+cat('No. of NA values in column Actor2 Facebook Likes:', sum(is.na(imdb$actor_2_facebook_likes)), '\n')
+cat('No. of NA values in column Actor3 Facebook Likes:', sum(is.na(imdb$actor_3_facebook_likes)), '\n')
+cat('No. of NA values in column Cast Total Facebook Likes:', sum(is.na(imdb$cast_total_facebook_likes)), '\n')
+
+cat('\nNo. of entries:', nrow(imdb))
+```
+
+```{r}
+likesdata <- imdb[!(is.na(imdb$movie_facebook_likes)
+                      | is.na(imdb$director_facebook_likes)
+                      | is.na(imdb$actor_1_facebook_likes)
+                      | is.na(imdb$actor_2_facebook_likes)
+                      | is.na(imdb$actor_3_facebook_likes)
+                      | is.na(imdb$cast_total_facebook_likes)), ]
+
+cat('No. of entries:', nrow(likesdata), '\n')
+```
+
+```{r}
+cat('No. of unique entries:', nrow(unique(likesdata)))
+```
+```{r}
+likesdata <- unique(likesdata)
+```
+
+```{r}
+summary(likesdata[c('movie_facebook_likes', 'director_facebook_likes', 'actor_1_facebook_likes', 'actor_2_facebook_likes', 'actor_3_facebook_likes', 'cast_total_facebook_likes')])
+
+cat('\nIQR(Movie Facebook Likes) =', IQR(likesdata$movie_facebook_likes), '\n')
+cat('sd(Movie Facebook Likes) =', sd(likesdata$movie_facebook_likes), '\n')
+
+cat('\nIQR(Director Facebook Likes) =', IQR(likesdata$director_facebook_likes), '\n')
+cat('sd(Director Facebook Likes) =', sd(likesdata$director_facebook_likes), '\n')
+
+cat('\nIQR(Actor1 Facebook Likes) =', IQR(likesdata$actor_1_facebook_likes), '\n')
+cat('sd(Actor1 Facebook Likes) =', sd(likesdata$actor_1_facebook_likes), '\n')
+
+cat('\nIQR(Actor2 Facebook Likes) =', IQR(likesdata$actor_2_facebook_likes), '\n')
+cat('sd(Actor2 Facebook Likes) =', sd(likesdata$actor_2_facebook_likes), '\n')
+
+cat('\nIQR(Actor3 Facebook Likes) =', IQR(likesdata$actor_3_facebook_likes), '\n')
+cat('sd(Actor3 Facebook Likes) =', sd(likesdata$actor_3_facebook_likes), '\n')
+
+cat('\nIQR(Cast Total Facebook Likes) =', IQR(likesdata$cast_total_facebook_likes), '\n')
+cat('sd(Cast Total Facebook Likes) =', sd(likesdata$cast_total_facebook_likes), '\n')
+```
+
+```{r}
+boxplot(likesdata$movie_facebook_likes,
+        main = 'Movie Facebook Likes Boxplot',
+        ylab = 'Facebook Likes')
+
+boxplot(likesdata$director_facebook_likes,
+        main = 'Director Facebook Likes Boxplot',
+        ylab = 'Facebook Likes')
+
+boxplot(likesdata$actor_1_facebook_likes,
+        main = 'Actor1 Facebook Likes Boxplot',
+        ylab = 'Facebook Likes')
+
+boxplot(likesdata$actor_2_facebook_likes,
+        main = 'Actor2 Facebook Likes Boxplot',
+        ylab = 'Facebook Likes')
+
+boxplot(likesdata$actor_3_facebook_likes,
+        main = 'Actor3 Facebook Likes Boxplot',
+        ylab = 'Facebook Likes')
+
+boxplot(likesdata$cast_total_facebook_likes,
+        main = 'Cast Total Facebook Likes Boxplot',
+        ylab = 'Facebook Likes')
+```
+
+```{r}
+q1 = quantile(likesdata$movie_facebook_likes, probs = 0.25)
+q3 = quantile(likesdata$movie_facebook_likes, probs = 0.75)
+iqr = IQR(likesdata$movie_facebook_likes)
+lbound = q1 - 1.5*iqr
+ubound = q3 + 1.5*iqr
+outliers = nrow(likesdata[(likesdata$movie_facebook_likes < lbound) | (likesdata$movie_facebook_likes > ubound), ])
+cat('No. of outliers in column Movie Facebook Likes:', outliers, '\n')
+
+
+q1 = quantile(likesdata$director_facebook_likes, probs = 0.25)
+q3 = quantile(likesdata$director_facebook_likes, probs = 0.75)
+iqr = IQR(likesdata$director_facebook_likes)
+lbound = q1 - 1.5*iqr
+ubound = q3 + 1.5*iqr
+outliers = nrow(likesdata[(likesdata$director_facebook_likes < lbound) | (likesdata$director_facebook_likes > ubound), ])
+cat('No. of outliers in column Director Facebook Likes:', outliers, '\n')
+
+
+q1 = quantile(likesdata$actor_1_facebook_likes, probs = 0.25)
+q3 = quantile(likesdata$actor_1_facebook_likes, probs = 0.75)
+iqr = IQR(likesdata$actor_1_facebook_likes)
+lbound = q1 - 1.5*iqr
+ubound = q3 + 1.5*iqr
+outliers = nrow(likesdata[(likesdata$actor_1_facebook_likes < lbound) | (likesdata$actor_1_facebook_likes > ubound), ])
+cat('No. of outliers in column Actor1 Facebook Likes:', outliers, '\n')
+
+
+q1 = quantile(likesdata$actor_2_facebook_likes, probs = 0.25)
+q3 = quantile(likesdata$actor_2_facebook_likes, probs = 0.75)
+iqr = IQR(likesdata$actor_2_facebook_likes)
+lbound = q1 - 1.5*iqr
+ubound = q3 + 1.5*iqr
+outliers = nrow(likesdata[(likesdata$actor_2_facebook_likes < lbound) | (likesdata$actor_2_facebook_likes > ubound), ])
+cat('No. of outliers in column Actor2 Facebook Likes:', outliers, '\n')
+
+
+q1 = quantile(likesdata$actor_3_facebook_likes, probs = 0.25)
+q3 = quantile(likesdata$actor_3_facebook_likes, probs = 0.75)
+iqr = IQR(likesdata$actor_3_facebook_likes)
+lbound = q1 - 1.5*iqr
+ubound = q3 + 1.5*iqr
+outliers = nrow(likesdata[(likesdata$actor_3_facebook_likes < lbound) | (likesdata$actor_3_facebook_likes > ubound), ])
+cat('No. of outliers in column Actor3 Facebook Likes:', outliers, '\n')
+
+
+q1 = quantile(likesdata$cast_total_facebook_likes, probs = 0.25)
+q3 = quantile(likesdata$cast_total_facebook_likes, probs = 0.75)
+iqr = IQR(likesdata$cast_total_facebook_likes)
+lbound = q1 - 1.5*iqr
+ubound = q3 + 1.5*iqr
+outliers = nrow(likesdata[(likesdata$cast_total_facebook_likes < lbound) | (likesdata$cast_total_facebook_likes > ubound), ])
+cat('No. of outliers in column Cast Total Facebook Likes:', outliers, '\n')
+
+cat('\nNo. of entries: ', nrow(likesdata))
+```
+
+```{r}
+cat('No. of unique movie titles:', length(unique(likesdata$movie_title)), '\n')
+cat('No. of directors:', length(unique(likesdata$director_name)), '\n')
+cat('No. of leading actors:', length(unique(likesdata$actor_1_name)), '\n')
+
+cat('\nNo. of entries:', nrow(likesdata))
+```
+
+```{r}
+cat('No. of unique movies:', nrow(unique(likesdata[c('movie_title', 'director_name')])), '\n')
+```
+
+```{r}
+dupes = likesdata$movie_title[duplicated(likesdata[c('movie_title', 'director_name')])]
+
+dupes_df = likesdata[likesdata$movie_title %in% dupes, ]
+
+dupes_df[order(dupes_df$movie_title), ]
+```
+
+```{r}
+for (title in dupes) {
+  entries = likesdata[likesdata$movie_title == title, ]
+  entries = entries[order(entries$num_voted_users, decreasing = TRUE, na.last = TRUE), ]
+  max_voted = entries[1, 'num_voted_users']
+  likesdata <- likesdata[!((likesdata$movie_title == title) & (likesdata$num_voted_users != max_voted)), ]
+}
+
+cat('No. of entries:', nrow(likesdata))
+```
+
+```{r}
+cat('No. of unique movies:', nrow(unique(likesdata[c('movie_title', 'director_name')])))
+```
+
+```{r}
+dupes = likesdata$movie_title[duplicated(likesdata[c('movie_title', 'director_name')])]
+
+dupes_df = likesdata[likesdata$movie_title %in% dupes, ]
+
+dupes_df[order(dupes_df$movie_title), ]
+```
+
+```{r}
+for (title in dupes) {
+  entries = likesdata[likesdata$movie_title == title, ]
+  entries = entries[order(entries$cast_total_facebook_likes, decreasing = TRUE, na.last = TRUE), ]
+  max_voted = entries[1, 'cast_total_facebook_likes']
+  likesdata <- likesdata[!((likesdata$movie_title == title) & (likesdata$cast_total_facebook_likes != max_voted)), ]
+}
+
+cat('No. of entries:', nrow(likesdata))
+```
+
+```{r}
+cat('Movie with the largest number of likes:', likesdata[likesdata$movie_facebook_likes == max(likesdata$movie_facebook_likes), ]$movie_title, '(', max(likesdata$movie_facebook_likes), ')\n')
+
+cat('Director with the largest number of likes for a single movie:', likesdata[likesdata$director_facebook_likes == max(likesdata$director_facebook_likes), ]$director_name, '(', max(likesdata$director_facebook_likes), ') - movie:', likesdata[likesdata$director_facebook_likes == max(likesdata$director_facebook_likes), ]$movie_title, '\n')
+
+cat('Actor with the largest number of likes for a single leading role in a movie:', likesdata[likesdata$actor_1_facebook_likes == max(likesdata$actor_1_facebook_likes), ]$actor_1_name, '(', max(likesdata$actor_1_facebook_likes), ') - movie:', likesdata[likesdata$actor_1_facebook_likes == max(likesdata$actor_1_facebook_likes), ]$movie_title)
+```
+
+```{r}
+h = hist(likesdata$movie_facebook_likes,
+         main="Movie Facebook Likes",
+         xlab="Facebook Likes",
+         ylab='Frequency',
+         col="blue"
+         )
+abline(v = mean(likesdata$movie_facebook_likes, na.rm = TRUE), col = "red", lwd = 4)
+abline(v = median(likesdata$movie_facebook_likes, na.rm = TRUE), col = "green", lwd = 4)
+
+h = hist(likesdata$director_facebook_likes,
+         main="Director Facebook Likes",
+         xlab="Facebook Likes",
+         ylab='Frequency',
+         col="blue"
+         )
+abline(v = mean(likesdata$director_facebook_likes, na.rm = TRUE), col = "red", lwd = 4)
+abline(v = median(likesdata$director_facebook_likes, na.rm = TRUE), col = "green", lwd = 4)
+
+h = hist(likesdata$actor_1_facebook_likes,
+         main="Actor1 Facebook Likes",
+         xlab="Facebook Likes",
+         ylab='Frequency',
+         col="blue"
+         )
+abline(v = mean(likesdata$actor_1_facebook_likes, na.rm = TRUE), col = "red", lwd = 4)
+abline(v = median(likesdata$actor_1_facebook_likes, na.rm = TRUE), col = "green", lwd = 4)
+
+h = hist(likesdata$actor_2_facebook_likes,
+         main="Actor2 Facebook Likes",
+         xlab="Facebook Likes",
+         ylab='Frequency',
+         col="blue"
+         )
+abline(v = mean(likesdata$actor_2_facebook_likes, na.rm = TRUE), col = "red", lwd = 4)
+abline(v = median(likesdata$actor_2_facebook_likes, na.rm = TRUE), col = "green", lwd = 4)
+
+h = hist(likesdata$actor_3_facebook_likes,
+         main="Actor3 Facebook Likes",
+         xlab="Facebook Likes",
+         ylab='Frequency',
+         col="blue"
+         )
+abline(v = mean(likesdata$actor_3_facebook_likes, na.rm = TRUE), col = "red", lwd = 4)
+abline(v = median(likesdata$actor_3_facebook_likes, na.rm = TRUE), col = "green", lwd = 4)
+
+h = hist(likesdata$cast_total_facebook_likes,
+         main="Cast Total Facebook Likes",
+         xlab="Facebook Likes",
+         ylab='Frequency',
+         col="blue"
+         )
+abline(v = mean(likesdata$cast_total_facebook_likes, na.rm = TRUE), col = "red", lwd = 4)
+abline(v = median(likesdata$cast_total_facebook_likes, na.rm = TRUE), col = "green", lwd = 4)
+```
+
+```{r}
+h = hist(log(likesdata$movie_facebook_likes),
+         main="Movie Facebook Likes",
+         xlab="Facebook Likes",
+         ylab='Frequency',
+         col="blue"
+         )
+
+h = hist(log(likesdata$director_facebook_likes),
+         main="Director Facebook Likes",
+         xlab="Facebook Likes",
+         ylab='Frequency',
+         col="blue"
+         )
+
+h = hist(log(likesdata$actor_1_facebook_likes),
+         main="Actor1 Facebook Likes",
+         xlab="Facebook Likes",
+         ylab='Frequency',
+         col="blue"
+         )
+
+h = hist(log(likesdata$actor_2_facebook_likes),
+         main="Actor2 Facebook Likes",
+         xlab="Facebook Likes",
+         ylab='Frequency',
+         col="blue"
+         )
+
+h = hist(log(likesdata$actor_3_facebook_likes),
+         main="Actor3 Facebook Likes",
+         xlab="Facebook Likes",
+         ylab='Frequency',
+         col="blue"
+         )
+
+h = hist(log(likesdata$cast_total_facebook_likes),
+         main="Cast Total Facebook Likes",
+         xlab="Facebook Likes",
+         ylab='Frequency',
+         col="blue"
+         )
+```
+
+```{r}
+likesdata.genres_sep = separate_rows(likesdata, genres, sep = "\\|")
+likesdata.genres_edt = likesdata.genres_sep[!(likesdata.genres_sep$genres %in% row.genres.remove), ]
+likesdata.genres_edt %>% group_by(genres) %>% summarise(AVG_facebook_likes = round(mean(movie_facebook_likes))) -> genre_likes
+print(genre_likes)
+
+summary(genre_likes)
+
+cat('\nIQR(Total Facebook Likes) =', IQR(genre_likes$AVG_facebook_likes), '\n')
+cat('sd(Total Facebook Likes) =', sd(genre_likes$AVG_facebook_likes), '\n')
+
+cat('\nGenre with the largest average number of likes:', genre_likes[genre_likes$AVG_facebook_likes == max(genre_likes$AVG_facebook_likes), ]$genres, '(', max(genre_likes$AVG_facebook_likes), ')\n')
+cat('Genre with the lowest average number of likes:', genre_likes[genre_likes$AVG_facebook_likes == min(genre_likes$AVG_facebook_likes), ]$genres, '(', min(genre_likes$AVG_facebook_likes), ')')
+
+par(mar=c(7.5, 4.1, 4.1, 2.1), font.axis = 2, font.lab =  2)
+barplot(genre_likes$AVG_facebook_likes,
+        names.arg = genre_likes$genres,
+        main = 'Average No. of Facebook Likes by Genre',
+        las = 2, col = 'blue')
+```
+
+```{r}
+plot(likesdata$director_facebook_likes, likesdata$movie_facebook_likes)
+plot(likesdata$actor_1_facebook_likes, likesdata$movie_facebook_likes)
+plot(likesdata$actor_2_facebook_likes, likesdata$movie_facebook_likes)
+plot(likesdata$actor_3_facebook_likes, likesdata$movie_facebook_likes)
+plot(likesdata$cast_total_facebook_likes, likesdata$movie_facebook_likes)
+```
