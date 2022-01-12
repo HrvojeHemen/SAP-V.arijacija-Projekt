@@ -5,10 +5,89 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyr)
+library(tidyverse)
 ```
+
+
+##Deskriptivna analiza
+
+```{r}
+likesdata <- imdb
+```
+
+Prvenstveno nas zanima koliki je broj jedistvenih redaka u našoj tablici podataka.
+```{r}
+cat('No. of unique entries:', nrow(unique(likesdata)))
+```
+
+Uočavamo da broj jedinstvenih redaka nije jednak ukupnom broju redaka u tablici. Dakle, tablica sadrži duplicirane retke (~0.9%), koje želimo maknuti iz tablice jer uzrokuju određenu redundanciju unutar naše tablice podataka. To slobodno možemo i učiniti, s obzirom da je njihov udio u tablici jako malen.
+```{r}
+likesdata <- unique(likesdata)
+```
+
+Nadalje, pogledajmo postoji li više različitih unosa za isti film (isti naziv i redatelj).
+```{r}
+cat('No. of unique movies:', nrow(unique(likesdata[c('movie_title', 'director_name')])), '\n')
+cat('No. of entries:', nrow(likesdata))
+```
+
+Uočavamo da je broj jedinstvenih filmova manji od ukupnog broja unosa, dakle postoje filmovi s više različitih unosa. Pogledajmo koji su to unosi i u čemu se razlikuju.
+```{r}
+dupes = likesdata$movie_title[duplicated(likesdata[c('movie_title', 'director_name')])]
+dupes_df = likesdata[likesdata$movie_title %in% dupes, ]
+dupes_df[order(dupes_df$movie_title), ]
+```
+
+Uočavamo da je svima zajedničko to što se razlikuju prema broju korisnika koji su glasali. Sačuvajmo unos s najvećim brojem glasača, a ostale odbacimo.
+```{r}
+for (title in dupes) {
+  entries = likesdata[likesdata$movie_title == title, ]
+  entries = entries[order(entries$num_voted_users, decreasing = TRUE, na.last = TRUE), ]
+  max_voted = entries[1, 'num_voted_users']
+  likesdata <- likesdata[!((likesdata$movie_title == title) & (likesdata$num_voted_users != max_voted)), ]
+}
+
+cat('No. of unique movies:', nrow(unique(likesdata[c('movie_title', 'director_name')])), '\n')
+cat('No. of entries:', nrow(likesdata))
+```
+
+Međutim, broj jedinstvenih filmova i dalje nije jednak ukupnom broju unosa. Izgleda da se ipak ne razlikuju svi prema broju glasača.
+```{r}
+dupes = likesdata$movie_title[duplicated(likesdata[c('movie_title', 'director_name')])]
+dupes_df = likesdata[likesdata$movie_title %in% dupes, ]
+dupes_df[order(dupes_df$movie_title), ]
+```
+
+Oba para se razlikuju prema ukupnom broju lajkova glumačke postave. Sačuvajmo one unose s većim brojem lajkova, a ostale odbacimo.
+```{r}
+for (title in dupes) {
+  entries = likesdata[likesdata$movie_title == title, ]
+  entries = entries[order(entries$cast_total_facebook_likes, decreasing = TRUE, na.last = TRUE), ]
+  max_voted = entries[1, 'cast_total_facebook_likes']
+  likesdata <- likesdata[!((likesdata$movie_title == title) & (likesdata$cast_total_facebook_likes != max_voted)), ]
+}
+
+cat('No. of unique movies:', nrow(unique(likesdata[c('movie_title', 'director_name')])), '\n')
+cat('No. of entries:', nrow(likesdata))
+```
+
+Konačno, tablica se sastoji isključivo od podataka jedinstvenih filmova.
+
 
 ## Možemo li što zaključiti iz podataka o Facebook lajkovima glavnih glumaca, redatelja te samog filma?
 
+U odgovoru na ovo pitanje, naš je fokus prvenstveno na onim varijablama u čijem se imenu pojavljuje string 'facebook_likes'. To su varijable:
+```{r}
+for (v in variable.names(imdb)) {
+  if (grepl(pattern = 'facebook_likes', v)) {
+    cat(v, '\n')
+  }
+}
+```
+Gornje varijable pohranjuju broj Facebook lajkova koje je dobio neki film, broj lajkova koje je dobio redatelj tog filma te broj lajkova koje su dobili glumci koji glume u tom filmu. Posebno se bilježe lajkovi koje je dobio svaki od glavnih glumaca (prvi, drugi i treći glumac po važnosti) i lajkovi cjelokupne glumačke postave.
+
+Zanima nas koliko koja od gornjih varijabli ima nedostajućih vrijednosti jer ih želimo maknuti iz seta podataka kojeg promatramo.
 ```{r}
 cat('No. of NA values in column Movie Facebook Likes:', sum(is.na(imdb$movie_facebook_likes)), '\n')
 cat('No. of NA values in column Director Facebook Likes:', sum(is.na(imdb$director_facebook_likes)), '\n')
@@ -19,7 +98,9 @@ cat('No. of NA values in column Cast Total Facebook Likes:', sum(is.na(imdb$cast
 
 cat('\nNo. of entries:', nrow(imdb))
 ```
+Vidimo da je broj lajkova koje je dobio film zabilježen za svaki unos (redak) u  tablici podataka. Isto vrijedi i za broj lajkova koje je dobila cjelokupna glumačka postava. Broj nezabilježenih unosa lajkova glavnih glumaca redom iznose: 7 (~0.14%) za prvog glumca, 13 (~0.26%) za drugog glumca te 23 (0.46%) za trećeg glumca. Najveći broj nedostajućih vrijednosti ima stupac lajkova koje je dobio redatelj - 104 (~2.06%).
 
+Riječ je o jako malim udjelima pa možemo maknuti sve retke u kojima barem jedan od tih stupaca ima nedostajaću vrijednost.
 ```{r}
 likesdata <- imdb[!(is.na(imdb$movie_facebook_likes)
                       | is.na(imdb$director_facebook_likes)
@@ -30,14 +111,9 @@ likesdata <- imdb[!(is.na(imdb$movie_facebook_likes)
 
 cat('No. of entries:', nrow(likesdata), '\n')
 ```
+Nova tablica bez nedostajućih vrijednosti ima 4919 redaka, što je približno 97.5% od ukupnog broja redaka stare tablice podataka. Uklonili smo gotovo nezamjetan broj redaka.
 
-```{r}
-cat('No. of unique entries:', nrow(unique(likesdata)))
-```
-```{r}
-likesdata <- unique(likesdata)
-```
-
+Sada kada smo uklonili nedostajuće vrijednosti, pogledajmo kako se ponašaju te varijable.
 ```{r}
 summary(likesdata[c('movie_facebook_likes', 'director_facebook_likes', 'actor_1_facebook_likes', 'actor_2_facebook_likes', 'actor_3_facebook_likes', 'cast_total_facebook_likes')])
 
@@ -59,7 +135,17 @@ cat('sd(Actor3 Facebook Likes) =', sd(likesdata$actor_3_facebook_likes), '\n')
 cat('\nIQR(Cast Total Facebook Likes) =', IQR(likesdata$cast_total_facebook_likes), '\n')
 cat('sd(Cast Total Facebook Likes) =', sd(likesdata$cast_total_facebook_likes), '\n')
 ```
+Uočavamo da je minimum svih varijabli 0 lajkova, što je samo po sebi logično jer broj lajkova ne može biti negativan. Maksimume varijabli brojimo u desetinama i stotinama tisuća.
 
+Kod varijable 'movie_facebook_likes' uočavamo da je barem 25% podataka jednako nuli. Prebrojimo koliko ih je točno jednako nuli.
+```{r}
+nrow(likesdata[likesdata$movie_facebook_likes == 0, ])
+```
+Dakle, 2113 (~43.3%) redaka u stupcu 'movie_facebook_likes' jednako je nuli. To je zaista velik udio podataka pa je za pretpostaviti da će distribucija biti desno zakrivljena, što nam dodatno potvrđuje i činjenica da je aritmetička sredina višestruko veća od medijana, vrijednosti od koje je točno polovica podataka manja. Štoviše, sredina je zamjetno veća i od trećeg kvartila, što bi značilo da su u gornjoj četvrtini podaci dovoljno veliki da bi 'nadvladali' ostatak. Drugim riječima, postoji nekolicina filmova sa zabilježenim iznimno velikim brojem lajkova s obzirom na većinu filmova. Moguće je da je riječ o grešci ili je neki film doživio ekstremnu popularnost među korisnicima Facebooka. Slična zapažanja mogu se primijeniti i na ostale varijable.
+
+Interkvartilni rang i standardna devijacija su mjere raspršenosti podataka, no interkvartilni rang je za razliku od standardne devijacije neosjetljiv na ekstreme. Od svih promatranih varijabli, najviše odskače upravo varijabla 'movie_facebook_likes', koja u usporedbi s drugim varijablama ima osrednji rang, no zato ima najveću standardnu devijaciju, po čemu bismo mogli pretpostaviti da ima najviše stršećih vrijednosti.
+
+Vizualizirajmo ponašanje promatranih varijabli korištenjem pravokutnog dijagrama.
 ```{r}
 boxplot(likesdata$movie_facebook_likes,
         main = 'Movie Facebook Likes Boxplot',
@@ -85,7 +171,9 @@ boxplot(likesdata$cast_total_facebook_likes,
         main = 'Cast Total Facebook Likes Boxplot',
         ylab = 'Facebook Likes')
 ```
+Grafovi nam ne daju toliko informacija o ponašanju podataka jer je raspon stršećih vrijednosti prevelik da bi se dobro vidio ostatak distribucije, no grafom smo uspjeli potvrditi da varijabla 'movie_facebook_likes' doista ima najviše stršećih vrijednosti.
 
+Isto potvrdimo i računski:
 ```{r}
 q1 = quantile(likesdata$movie_facebook_likes, probs = 0.25)
 q3 = quantile(likesdata$movie_facebook_likes, probs = 0.75)
@@ -142,69 +230,7 @@ cat('No. of outliers in column Cast Total Facebook Likes:', outliers, '\n')
 
 cat('\nNo. of entries: ', nrow(likesdata))
 ```
-
-```{r}
-cat('No. of unique movie titles:', length(unique(likesdata$movie_title)), '\n')
-cat('No. of directors:', length(unique(likesdata$director_name)), '\n')
-cat('No. of leading actors:', length(unique(likesdata$actor_1_name)), '\n')
-
-cat('\nNo. of entries:', nrow(likesdata))
-```
-
-```{r}
-cat('No. of unique movies:', nrow(unique(likesdata[c('movie_title', 'director_name')])), '\n')
-```
-
-```{r}
-dupes = likesdata$movie_title[duplicated(likesdata[c('movie_title', 'director_name')])]
-
-dupes_df = likesdata[likesdata$movie_title %in% dupes, ]
-
-dupes_df[order(dupes_df$movie_title), ]
-```
-
-```{r}
-for (title in dupes) {
-  entries = likesdata[likesdata$movie_title == title, ]
-  entries = entries[order(entries$num_voted_users, decreasing = TRUE, na.last = TRUE), ]
-  max_voted = entries[1, 'num_voted_users']
-  likesdata <- likesdata[!((likesdata$movie_title == title) & (likesdata$num_voted_users != max_voted)), ]
-}
-
-cat('No. of entries:', nrow(likesdata))
-```
-
-```{r}
-cat('No. of unique movies:', nrow(unique(likesdata[c('movie_title', 'director_name')])))
-```
-
-```{r}
-dupes = likesdata$movie_title[duplicated(likesdata[c('movie_title', 'director_name')])]
-
-dupes_df = likesdata[likesdata$movie_title %in% dupes, ]
-
-dupes_df[order(dupes_df$movie_title), ]
-```
-
-```{r}
-for (title in dupes) {
-  entries = likesdata[likesdata$movie_title == title, ]
-  entries = entries[order(entries$cast_total_facebook_likes, decreasing = TRUE, na.last = TRUE), ]
-  max_voted = entries[1, 'cast_total_facebook_likes']
-  likesdata <- likesdata[!((likesdata$movie_title == title) & (likesdata$cast_total_facebook_likes != max_voted)), ]
-}
-
-cat('No. of entries:', nrow(likesdata))
-```
-
-```{r}
-cat('Movie with the largest number of likes:', likesdata[likesdata$movie_facebook_likes == max(likesdata$movie_facebook_likes), ]$movie_title, '(', max(likesdata$movie_facebook_likes), ')\n')
-
-cat('Director with the largest number of likes for a single movie:', likesdata[likesdata$director_facebook_likes == max(likesdata$director_facebook_likes), ]$director_name, '(', max(likesdata$director_facebook_likes), ') - movie:', likesdata[likesdata$director_facebook_likes == max(likesdata$director_facebook_likes), ]$movie_title, '\n')
-
-cat('Actor with the largest number of likes for a single leading role in a movie:', likesdata[likesdata$actor_1_facebook_likes == max(likesdata$actor_1_facebook_likes), ]$actor_1_name, '(', max(likesdata$actor_1_facebook_likes), ') - movie:', likesdata[likesdata$actor_1_facebook_likes == max(likesdata$actor_1_facebook_likes), ]$movie_title)
-```
-
+Nadalje, pogledajmo distribucije promatranih varijabli:
 ```{r}
 h = hist(likesdata$movie_facebook_likes,
          main="Movie Facebook Likes",
@@ -260,64 +286,116 @@ h = hist(likesdata$cast_total_facebook_likes,
 abline(v = mean(likesdata$cast_total_facebook_likes, na.rm = TRUE), col = "red", lwd = 4)
 abline(v = median(likesdata$cast_total_facebook_likes, na.rm = TRUE), col = "green", lwd = 4)
 ```
+Baš kako smo i pretpostavili, distribucije varijabli su desno zakrivljene.
 
+Sami histogrami nisu nam toliko korisni u ovom obliku jer se većina vrijednosti mjeri u stotinama, stoga skalirajmo podatke prirodnim logaritmom.
 ```{r}
 h = hist(log(likesdata$movie_facebook_likes),
-         main="Movie Facebook Likes",
+         axes = FALSE,
+         main="Movie Facebook Likes (log)",
          xlab="Facebook Likes",
          ylab='Frequency',
-         col="blue"
+         breaks = 20, col="blue"
          )
+axis(side = 1,
+     at = log(c(1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000)),
+     labels = paste(c(1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000)),
+     cex.axis = 0.75,
+     padj = -1,
+     hadj = 0.5,
+     las = 1)
+axis(2)
 
 h = hist(log(likesdata$director_facebook_likes),
-         main="Director Facebook Likes",
+         axes = FALSE,
+         main="Director Facebook Likes (log)",
          xlab="Facebook Likes",
          ylab='Frequency',
-         col="blue"
+         breaks = 20, col="blue"
          )
+axis(side = 1,
+     at = log(c(1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000)),
+     labels = paste(c(1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000)),
+     cex.axis = 0.75,
+     padj = -1,
+     hadj = 0.5,
+     las = 1)
+axis(2)
 
 h = hist(log(likesdata$actor_1_facebook_likes),
-         main="Actor1 Facebook Likes",
+         axes = FALSE,
+         main="Actor1 Facebook Likes (log)",
          xlab="Facebook Likes",
          ylab='Frequency',
-         col="blue"
+         breaks = 20, col="blue"
          )
+axis(side = 1,
+     at = log(c(1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000)),
+     labels = paste(c(1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000)),
+     cex.axis = 0.75,
+     padj = -1,
+     hadj = 0.5,
+     las = 1)
+axis(2)
 
 h = hist(log(likesdata$actor_2_facebook_likes),
-         main="Actor2 Facebook Likes",
+         axes = FALSE,
+         main="Actor2 Facebook Likes (log)",
          xlab="Facebook Likes",
          ylab='Frequency',
-         col="blue"
+         breaks = 20, col="blue"
          )
+axis(side = 1,
+     at = log(c(1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000)),
+     labels = paste(c(1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000)),
+     cex.axis = 0.75,
+     padj = -1,
+     hadj = 0.5,
+     las = 1)
+axis(2)
 
 h = hist(log(likesdata$actor_3_facebook_likes),
-         main="Actor3 Facebook Likes",
+         axes = FALSE,
+         main="Actor3 Facebook Likes (log)",
          xlab="Facebook Likes",
          ylab='Frequency',
-         col="blue"
+         breaks = 20, col="blue"
          )
+axis(side = 1,
+     at = log(c(1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000)),
+     labels = paste(c(1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000)),
+     cex.axis = 0.75,
+     padj = -1,
+     hadj = 0.5,
+     las = 1)
+axis(2)
 
 h = hist(log(likesdata$cast_total_facebook_likes),
-         main="Cast Total Facebook Likes",
+         axes = FALSE,
+         main="Cast Total Facebook Likes (log)",
          xlab="Facebook Likes",
          ylab='Frequency',
-         col="blue"
+         breaks = 20, col="blue"
          )
+axis(side = 1,
+     at = log(c(1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000)),
+     labels = paste(c(1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000)),
+     cex.axis = 0.75,
+     padj = -1,
+     hadj = 0.5,
+     las = 1)
+axis(2)
 ```
+Ovi nam histogrami puno jasnije prikazuju distribucije promatranih varijabli. Distribucije su višemodalne. Većina ih ima najviše pojava u intervalu između 500 i 1000 lajkova te zatim oko 10 000 lajkova. Distribucija varijable 'director_facebook_likes' bila bi najbliža normalnoj distribuciji da nema stršećih vrijednosti koje se nakupljaju između vrijednosti 10 000 i 50 000 lajkova.
 
+
+## Prosječni broj Facebook lajkova po žanru
+
+Zanima nas kakva je prosječna raspodjela lajkova po žanrovima. Ideja je grupirati filmove po žanrovima i prema lajkovima filmova dobiti prosječan broj lajkova žanra. Kako jedan film može imati više žanrova, prvo ćemo ih morati razdvojiti.
 ```{r}
 likesdata.genres_sep = separate_rows(likesdata, genres, sep = "\\|")
 likesdata.genres_edt = likesdata.genres_sep[!(likesdata.genres_sep$genres %in% row.genres.remove), ]
 likesdata.genres_edt %>% group_by(genres) %>% summarise(AVG_facebook_likes = round(mean(movie_facebook_likes))) -> genre_likes
-print(genre_likes)
-
-summary(genre_likes)
-
-cat('\nIQR(Total Facebook Likes) =', IQR(genre_likes$AVG_facebook_likes), '\n')
-cat('sd(Total Facebook Likes) =', sd(genre_likes$AVG_facebook_likes), '\n')
-
-cat('\nGenre with the largest average number of likes:', genre_likes[genre_likes$AVG_facebook_likes == max(genre_likes$AVG_facebook_likes), ]$genres, '(', max(genre_likes$AVG_facebook_likes), ')\n')
-cat('Genre with the lowest average number of likes:', genre_likes[genre_likes$AVG_facebook_likes == min(genre_likes$AVG_facebook_likes), ]$genres, '(', min(genre_likes$AVG_facebook_likes), ')')
 
 par(mar=c(7.5, 4.1, 4.1, 2.1), font.axis = 2, font.lab =  2)
 barplot(genre_likes$AVG_facebook_likes,
@@ -326,10 +404,8 @@ barplot(genre_likes$AVG_facebook_likes,
         las = 2, col = 'blue')
 ```
 
+Vidimo da je žanr s najvećim prosječnim brojem lajkova SF, dok dokumentarci u prosjeku dobivaju najmanje lajkova. Pogledajmo koji su točni iznosi:
 ```{r}
-plot(likesdata$director_facebook_likes, likesdata$movie_facebook_likes)
-plot(likesdata$actor_1_facebook_likes, likesdata$movie_facebook_likes)
-plot(likesdata$actor_2_facebook_likes, likesdata$movie_facebook_likes)
-plot(likesdata$actor_3_facebook_likes, likesdata$movie_facebook_likes)
-plot(likesdata$cast_total_facebook_likes, likesdata$movie_facebook_likes)
+cat('Sci-Fi:', max(genre_likes$AVG_facebook_likes), '\n')
+cat('Documentary:', min(genre_likes$AVG_facebook_likes), '\n')
 ```
