@@ -8,10 +8,10 @@ imdb <- read.csv(file = 'IMDB.csv')
 library(tidyr)
 library(tidyverse)
 ```
-#Dobivaju li americki filmovi veca financiranja od filmova drugih zemalja
+#Dobivaju li američki filmovi veća financiranja od filmova drugih zemalja
 
 
-#Prebrojimo koliko Americkih filmova za svoj budget ima NA
+Prebrojimo koliko Američkih filmova za svoj budget ima NA
 ```{r}
 americkiFilmovi <- imdb[imdb$country == "USA",]$budget/1000000
 
@@ -19,30 +19,26 @@ cat("Broj Americkih filmova : ", length(americkiFilmovi), "\n")
 cat("Broj NA vrijednosti: ", sum(is.na(americkiFilmovi)), "\n")
 
 ```
-#Vidimo da je manje od 20% te cemo te redke sada maknuti
+Vidimo da je manje od 20% te cemo te redke sada maknuti
 ```{r}
 americkiFilmovi <- na.omit(americkiFilmovi)
 cat("Broj Americkih filmova bez NA redaka: ", length(americkiFilmovi), "\n")
 ```
 
-
-
-
 ```{r}
-neAmerickiFilmovi <- imdb[imdb$country != "USA",]$budget/1000000
+neAmerickiFilmovi <- imdb[imdb$country != "USA" ,]$budget/1000000
 
 cat("Broj ne Americkih filmova : ", length(neAmerickiFilmovi), "\n")
 cat("Broj NA vrijednosti: ", sum(is.na(neAmerickiFilmovi)), "\n")
 
 ```
-#Ovdje je takoder tih redaka manje od 20% te cemo te redke takoder sada maknuti
+Ovdje je takoder tih redaka manje od 20% te cemo te redke takoder sada maknuti
 
 ```{r}
 neAmerickiFilmovi <- na.omit(neAmerickiFilmovi)
 cat("Broj Ne Americkih filmova bez NA redaka: ", length(neAmerickiFilmovi), "\n")
 ```
-
-#Micemo outliere iz vektora
+Maknimo sada outliere iz vektora
 
 ```{r}
 americkiFilmoviOutliers <- boxplot(americkiFilmovi, plot=FALSE)$out
@@ -55,20 +51,89 @@ neAmerickiFilmovi <- neAmerickiFilmovi[-which(neAmerickiFilmovi %in% neAmerickiF
 
 ```
 
-#Sada cemo vizualizirati te podatke da vidimo dolaze li iz normalne razdiobe
+Sada ćemo vizualizirati te podatke da vidimo dolaze li iz normalne razdiobe
 ```{r}
 
 qqnorm(americkiFilmovi, pch = 1, frame = FALSE,main='Financiranje Americkih filmova ')
 qqline(americkiFilmovi, col = "blue", lwd = 2)
 
 
+```
+```{r}
+
 qqnorm(neAmerickiFilmovi, pch = 1, frame = FALSE,main='Financiranje Ne Americkih filmova ')
 qqline(neAmerickiFilmovi, col = "blue", lwd = 2)
 
+```
+Vidimo da ove grafovi ne nalikuju na Normalnu razdiobu, no mozda će nalikovati ako na podatke primjenimo logaritamsku funkciju
 
-boxplot(americkiFilmovi)
+```{r}
+logAmericki <- log(americkiFilmovi)
+
+qqnorm(logAmericki, pch = 1, frame = FALSE,main='Financiranje Americkih filmova sa log funkcijom')
+qqline(logAmericki, col = "blue", lwd = 2)
 
 
+```
+
+```{r}
+
+logNeAmericki <- log(neAmerickiFilmovi)
+
+qqnorm(logNeAmericki, pch = 1, frame = FALSE,main='Financiranje Ne Americkih filmova sa log funkcijom')
+qqline(logNeAmericki, col = "blue", lwd = 2)
+
+```
+
+
+Vidimo da ni nakon toga ne nalikuju na normalnu, ali ako bolje proučimo, graf nalikuje na x^3, te ako primjenimo treci korijen, možda će onda podatci biti normalni
+
+```{r}
+treciKorijenAmericki <- americkiFilmovi ^ (1/3)
+
+qqnorm(treciKorijenAmericki, pch = 1, frame = FALSE,main='Financiranje Americkih filmova sa treci korijen funkcijom')
+qqline(treciKorijenAmericki, col = "blue", lwd = 2)
+
+
+```
+
+```{r}
+
+treciKorijenNeAmericki <- neAmerickiFilmovi ^ (1/3)
+
+qqnorm(treciKorijenNeAmericki, pch = 1, frame = FALSE,main='Financiranje Ne Americkih filmova sa treci korijen funkcijom')
+qqline(treciKorijenNeAmericki, col = "blue", lwd = 2)
+
+```
+
+
+Pogledajmo sada i histograme za te novoskalirane podatke
+
+```{r}
+
+hist(treciKorijenAmericki,
+        main="Histogram Američkih filmova skaliranih funkcijom 3. korijen",
+        xlab="budžet u milijunima",
+        ylab="frekvencija"
+     )
+
+
+hist(treciKorijenNeAmericki,
+        main="Histogram Američkih filmova filmova skaliranih funkcijom 3. korijen",
+        xlab="budžet u milijunima",
+        ylab="frekvencija"
+     )
+
+```
+Iz grafova vidimo da su distribucije sada poprilično normalne
+
+
+```{r}
+boxplot(treciKorijenAmericki, treciKorijenNeAmericki,
+        main="Box plot Američih i ne Američkih filmova skaliranih funkcijom 3. korijen",
+        xlab="filmovi",
+        ylab="budžet u milijunima"
+        )
 ```
 
 
@@ -77,26 +142,71 @@ boxplot(americkiFilmovi)
 
 
 ```{r}
-cat("Srednja vrijednost Americkih Filmova: ", mean(americkiFilmovi), "\n")
-cat("Srednja vrijednost ne Americkih Filmova: ", mean(neAmerickiFilmovi), "\n")
+cat("Srednja vrijednost Američkih Filmova: ", mean(treciKorijenAmericki), "\n")
+cat("Srednja vrijednost ne Američkih Filmova: ", mean(treciKorijenNeAmericki), "\n")
 
-cat("Standardna devijacija Americkih Filmova: ", sd(americkiFilmovi), "\n")
-cat("Standardna devijacija ne Americkih Filmova: ", sd(neAmerickiFilmovi), "\n")
+cat("Standardna devijacija Američkih Filmova: ", sd(treciKorijenAmericki), "\n")
+cat("Standardna devijacija ne Američkih Filmova: ", sd(treciKorijenNeAmericki), "\n")
 
 ```
-#Sada cemo provesti i F test za varijance iz kojega vidimo da je p value skoro pa i 0 te iz toga zakljucujemo da se varijance uistinu razlikuju
+Sada cemo provesti i F test za varijance 
 
 ```{r}
 
-var.test(americkiFilmovi,neAmerickiFilmovi)
+var.test(treciKorijenAmericki,treciKorijenNeAmericki)
 
 ```
-#Sada postavimo hipoteze, H0... Americki filmovi imaju jednak budzet kao i ne Americki -> mi1 = mi2, d0 = 0
-#                         H1... Americki filmovi imaju veci budzet -> mi1 > mi2, d0 > 0
-#                         alfa = 5%
+Iz njega vidimo da je p value skoro pa i 0 te iz toga zaključujemo da se varijance uistinu razlikuju
+
+Sada postavimo hipoteze, H0... Američki filmovi imaju jednak budzet kao i ne Američki -> mi1 = mi2, d0 = 0
+                         H1... Američki filmovi imaju veci budzet -> mi1 > mi2, d0 > 0
+                         alfa = 5%
 ```{r}
 
-t.test(americkiFilmovi, neAmerickiFilmovi, alternative = "greater", var.equal = FALSE)
+t.test(treciKorijenAmericki, treciKorijenNeAmericki, alternative = "greater", var.equal = FALSE)
 
 ```
-#Hipoteza H0 se odbija jer je p vrijednost manja od alfe
+Hipoteza H0 se odbija jer je p vrijednost manja od alfe
+
+Iz ovog mozemo zaključiti da Americki filmovi imaju veci budežet od ne Američkih filmova, no ovo je bila provjera svih ne Američkih zajedno
+
+idemo sada ponoviti isti postupak ali za neku zemlje zasebno, poput UK, izbacimo outliere, te prazne vrijednosti, te skaliramo sa funkcijom 3. korijen
+
+```{r}
+UKfilmovi <- imdb[imdb$country == "UK",]$budget/1000000
+
+UKfilmovi <- na.omit(UKfilmovi)
+
+UKfilmoviOutliers <- boxplot(UKfilmovi, plot=FALSE)$out
+UKfilmovi <- UKfilmovi[-which(UKfilmovi %in% UKfilmoviOutliers)]
+
+
+UKfilmovi <- UKfilmovi ^ (1/3)
+
+qqnorm(UKfilmovi, pch = 1, frame = FALSE,main='Financiranje UK filmova sa treci korijen funkcijom')
+qqline(UKfilmovi, col = "blue", lwd = 2)
+
+```
+Iz grafa mozemo zaključiti normalnost
+
+````{r}
+cat("Srednja vrijednost UK Filmova: ", mean(UKfilmovi), "\n")
+cat("Standardna devijacija UK Filmova: ", sd(UKfilmovi), "\n")
+```
+One sliče na vrijednosti koje smo dobili za sve ne americke filmove zajedno, no idemo provesti f test jos jednom za svaki slučaj
+
+```{r}
+
+var.test(treciKorijenAmericki,UKfilmovi)
+
+```
+Kao što vidimo, opet možemo zaključiti da varijance nisu jednake jer je p vrijednost opet skoro pa jednaka nuli
+Sada postavimo hipoteze, H0... Američki filmovi imaju jednak budžet kao i UK filmovi -> mi1 = mi2, d0 = 0
+                         H1... Američki filmovi imaju veci budžet -> mi1 > mi2, d0 > 0
+                         alfa = 5%
+```{r}
+
+t.test(treciKorijenAmericki, UKfilmovi, alternative = "greater", var.equal = FALSE)
+
+```
+p vrijednost je i u ovom testu značajno manja od alfe te zaključujemo da Američki filmovi dobivaju veći budžet od UK filmova
