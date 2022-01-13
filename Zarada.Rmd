@@ -146,7 +146,7 @@ qqnorm(rstandard(selected.model))
 qqline(rstandard(selected.model))
 
 
-selected.model = fit.duration
+selected.model = fit.dur
 
 qqnorm(rstandard(selected.model))
 qqline(rstandard(selected.model))
@@ -169,7 +169,7 @@ Pogledat ćemo mjere kvalitete prilagodbe modela podatcima.
 
 summary(fit.budget)
 
-summary(fit.duration)
+summary(fit.dur)
 
 summary(fit.ty)
 
@@ -330,13 +330,13 @@ Sada ćemo još pokušati transformirati neke varijable i približiti distribuci
 
 ```{r}
 library("SciViews")
-fit.multi.exp = lm(gross ~ budget + country + log(budget), imdbcou)
+fit.multi.exp = lm(gross ~ budget + country + I(budget^(1/3)), imdbcou)
 summary(fit.multi.exp)
 
 
 
 ```
-Primijenili smo transformaciju log(budget) i time smo malo poboljšali model.
+Primijenili smo transformaciju I(budget^(1/3)) i time smo malo poboljšali model.
 Pogledajmo sada distribuciju reziduala.
 
 ```{r}
@@ -381,7 +381,7 @@ imdbtry <- imdbtry[-which(imdbtry$gross %in% outliers07),]
 
 nrow(imdbtry)
 
-fit.multi.x = lm(gross ~ budget + country + log(budget), imdbtry)
+fit.multi.x = lm(gross ~ budget + country + I(budget^(1/3)), imdbtry)
 summary(fit.multi.x)
 
 selected.model = fit.multi.x
@@ -393,13 +393,13 @@ qqline(rstandard(selected.model))
 
 
 ```
-Sada je distribucija nešto bliža normalnoj
+Sada je distribucija nešto bliža normalnoj.
 
 Pogledajmo sada naš model.
 
 ```{r}
 
-fit.multi.x = lm(gross ~ budget + country + log(budget), imdbtry)
+fit.multi.x = lm(gross ~ budget + country + I(budget^(1/3)), imdbtry)
 summary(fit.multi.x)
 
 ```
