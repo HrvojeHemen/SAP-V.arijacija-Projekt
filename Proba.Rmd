@@ -1,0 +1,150 @@
+---
+title: "Proba"
+author: "Jura"
+date: "1/14/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+
+
+imdb <- read.csv(file = 'IMDB.csv')
+ogimdb <- imdb
+library(tidyr)
+
+```
+
+```{r scatter plots}
+
+plot(imdb$movie_facebook_likes,imdb$director_facebook_likes) 
+
+
+plot(imdb$movie_facebook_likes,imdb$actor_1_facebook_likes)
+
+
+
+```
+```{r}
+
+imdb0 <- imdb[!is.na(imdb$movie_facebook_likes),]
+imdb1 <- imdb0[!is.na(imdb0$director_facebook_likes),]
+imdb2 <- imdb0[!is.na(imdb0$actor_1_facebook_likes),]
+
+
+
+```
+
+
+```{r scatter plots}
+
+plot(imdb$movie_facebook_likes,imdb$director_facebook_likes) 
+
+
+plot(imdb$movie_facebook_likes,imdb$actor_1_facebook_likes)
+
+
+
+```
+
+
+```{r}
+
+
+outliersgross <- boxplot(imdb1$movie_facebook_likes, plot=FALSE)$out
+imdbh1 <- imdb1[-which(imdb1$movie_facebook_likes %in% outliersgross),]
+
+outliersgross <- boxplot(imdb2$gross, plot=FALSE)$out
+imdbh2 <- imdb2[-which(imdb2$gross %in% outliersgross),]
+
+outliersbudget <- boxplot(imdbh1$director_facebook_likes, plot=FALSE)$out
+imdb11 <- imdbh1[-which(imdbh1$director_facebook_likes %in% outliersbudget),]
+
+outliersdur <- boxplot(imdbh2$actor_1_facebook_likes, plot=FALSE)$out
+imdb22<- imdbh2[-which(imdbh2$actor_1_facebook_likes %in% outliersdur),]
+
+
+
+```
+
+
+
+
+```{r scatter plots}
+
+plot(imdb11$movie_facebook_likes,imdb11$director_facebook_likes) 
+
+
+plot(imdb22$movie_facebook_likes,imdb22$actor_1_facebook_likes)
+
+
+
+```
+
+```{r jednostavna regresija}
+
+fit.1 = lm(movie_facebook_likes~director_facebook_likes,data=imdb11) 
+
+fit.2 = lm(movie_facebook_likes~actor_1_facebook_likes,data=imdb22)
+
+
+
+
+
+plot(imdb11$director_facebook_likes,imdb11$movie_facebook_likes) 
+lines(imdb11$director_facebook_likes,fit.1$fitted.values,col='red') 
+
+plot(imdb22$actor_1_facebook_likes,imdb22$movie_facebook_likes)
+lines(imdb22$actor_1_facebook_likes,fit.2$fitted.values,col='red')
+
+
+
+
+
+```
+
+
+```{r}
+
+selected.model = fit.1
+
+qqnorm(rstandard(selected.model))
+qqline(rstandard(selected.model))
+
+
+selected.model = fit.2
+
+qqnorm(rstandard(selected.model))
+qqline(rstandard(selected.model))
+
+```
+
+
+
+
+```{r analiza procijenjenih modela}
+
+summary(fit.1)
+
+summary(fit.2)
+
+summary(fit.ty)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

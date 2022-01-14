@@ -776,3 +776,846 @@ axis(2)
 ```
 
 Ovi nam histogrami puno jasnije prikazuju distribucije promatranih varijabli. Distribucije su višemodalne. Većina ih ima najviše pojava u intervalu između 500 i 1000 lajkova te zatim oko 10 000 lajkova. Distribucija varijable 'director_facebook_likes' bila bi najbliža normalnoj distribuciji da nema stršećih vrijednosti koje se nakupljaju između vrijednosti 10 000 i 50 000 lajkova.
+
+
+## Imaju li neki žanrovi značajno različite ocjene na IMDB-u?
+Kod ove hipoteze zanima nas postoji li neka značajna razlika kod ocjena različitih žanrova na IMDB-u.
+U nastavku ćemo testirati našu hipotezu. Promtoriti ćemo prosječne ocjene kod filmova koji pripadaju žanrovima "Biography" i "Horror".
+
+```{r}
+biography <- genres_edited[genres_edited$genres=="Biography",]
+horror <- genres_edited[genres_edited$genres=="Horror",]
+
+#Izdvajamo samo stupce sa zanrovima, imenima filmova i ocjenama
+biography <- biography[c(10,12,26)]
+horror <- horror[c(10,12,26)]
+
+##Provjera postoje li filmovi koji su ujedno i Biography i Horror
+biography.movie_titles <- biography["movie_title"]
+horror.movie_titles <- horror["movie_title"]
+remove.list <-Reduce(intersect, list(biography.movie_titles, horror.movie_titles))
+
+cat("Broj filmova koji pripadju žanrovima \"Horror\" i \"Biography\": ", nrow(remove.list))
+```
+Vidimo da samo 1 film pripada u oba žanra te zbog pretpostavke nezavisnosti koju ćemo koristiti u našem testu odbaciti ćemo ovaj podatak.
+
+```{r}
+biography <- biography[!(biography$movie_title %in% remove.list), ]
+horror <- horror[!(horror$movie_title %in% remove.list), ]
+```
+
+Sada kada smo dobili nezavisne podatke potrebno je provjeriti dolaze li podaci iz normalne razdiobe. Ovo ćemo napraviti uz pomoć QQ-plota.
+
+```{r}
+# QQ plot za ocjene zanra biography
+qqnorm(biography$imdb_score, pch = 1, frame = FALSE,main='Ocjene zanra biography')
+qqline(biography$imdb_score, col = "blue", lwd = 2)
+
+# QQ plot za ocjene zanra horror
+qqnorm(horror$imdb_score, pch = 1, frame = FALSE,main='Ocjene zanra horror')
+qqline(horror$imdb_score, col = "blue", lwd = 2)
+
+```
+Iz QQ-plota možemo vidjeti kako ocjene za žanr "Horror" dolaze iz normalne razdiobe, no isto ne možemo reći i za žanr "Biography".
+Pogledajmo imamo li veći broj stršećih vrijednosti koje utječu na ovaj rezultat
+
+```{r}
+boxplot(biography$imdb_score, horror$imdb_score,
+        names=c("Biography IMDB score", "Horror IMDB score"),
+        main = "Boxplot of IMDB scores")
+```
+Možemo vidjeti kako imamo dosta stršećih vrijednosti kod žanra "Biography" te ih zato uklanjamo kako bi dobili bolju pretpostavku normalnosti.
+
+```{r}
+biography.edited <- biography[!biography$imdb_score %in% boxplot.stats(biography$imdb_score)$out,]
+```
+
+Pogledajmo sada podatke na QQ-plotu.
+```{r}
+qqnorm(biography.edited$imdb_score, pch = 1, frame = FALSE,main='Ocjene zanra biography')
+qqline(biography.edited$imdb_score, col = "blue", lwd = 2)
+```
+
+Sada kada smo postigli normalnost i nezavisnost ocjena za žanrove "Biography" i "Horror" možemo krenuti provoditi test.
+
+$$1) \quad H_0 \quad \dots \quad  Prosječna \ ocjena \ žanra \ Biography \ je \ jednaka \ ocjeni \ žanra \ Horror $$ $$ \mu_1 = \mu_2 $$
+$$2) \quad H_1 \quad \dots \quad  Prosječna \ ocjena \ žanra \ Biography \ nije \ jednaka \ ocjeni \ žanra \ Horror $$ $$ \mu_1 \neq \mu_2 $$
+$$3) \quad \alpha = 0.05$$
+Prije nego krenemo s provođenjem testa moramo provjeriti jesu li varijance naših podataka jednake kako bi znali provest odgovarajući t-test.
+$$1) \quad H_0 \quad \dots \quad  Varijance \ distribucija \ se \ ne \ razlikuju$$ $$ \sigma_1 = \sigma_2$$
+$$2) \quad H_1 \quad \dots \quad  Varijance \ distribucija \ se \ razlikuju$$ $$ \sigma_1 \neq \sigma_2$$
+$$3) \quad \alpha = 0.05$$
+```{r}
+var.test(biography$imdb_score, horror$imdb_score)
+```
+Zbog jako male p-vrijednosti zaključujemo da na razini značajnosti od 5% varijance nisu jednake. Nakon toga provodimo t-test za za različite varijance. 
+
+```{r}
+t.test(biography.edited$imdb_score, horror$imdb_score, alt = "two.sided", var.equal = FALSE)
+```
+Možemo vidjeti kako je p-vrijednost izrazito mala te iz tog razloga odbacujemo hipotezu $H_0$ u korist $H_1$ te zaključujemo da na razini značajnosti od 5% sredine ocjena za žanrove "Biography" i "Horror" nisu jednake. 
+
+Pogledajmo sada usporedbu 5 žanrova (Action, Comedy, Drama, Thriller, Romance) i njihovih prosječnih ocjena korištenjem ANOVE. Izabrali smo upravo ove žanrove zbog veličine njihvog uzorka (n > 1000) što naravno utječe na ispravnost naših zaključaka i smanjuje šanse za pogreške prve i druge vrste.
+Imamo problem jer podaci iz uzoraka nisu nezavisni te je zato potrebno gledati samo filmove koji ne pripadaju nijednom od ostalih 4 žanrova.
+
+Kao što smo vidjeli u deskriptivnoj analizi postoji velik broj stršećih vrijednosti što može znatno utjecati na pretpostavku normalnosti podataka koja nam je potrebna.
+Izbacimo prvo stršeće vrijednosti iz skupa podataka za pojedine žanrove
+```{r}
+#Svi filmovi pojedinog zanra
+action <- genres_edited[genres_edited$genres=="Action",]
+comedy <- genres_edited[genres_edited$genres=="Comedy",]
+drama <- genres_edited[genres_edited$genres=="Drama",]
+thriller <- genres_edited[genres_edited$genres=="Thriller",]
+romance <- genres_edited[genres_edited$genres=="Romance",]
+
+#Izbacivanje strsecih vrijednosti
+action <- action[!action$imdb_score %in% boxplot.stats(action$imdb_score)$out,]
+comedy <- comedy[!comedy$imdb_score %in% boxplot.stats(comedy$imdb_score)$out,]
+drama <- drama[!drama$imdb_score %in% boxplot.stats(drama$imdb_score)$out,]
+thriller <- thriller[!thriller$imdb_score %in% boxplot.stats(thriller$imdb_score)$out,]
+romance <- romance[!romance$imdb_score %in% boxplot.stats(romance$imdb_score)$out,]
+
+```
+
+Izbacimo nakon toga filmove koji pripadaju u više žanrova iz našeg skupa.
+
+```{r}
+#Imena filmova pojedinog zanra (da lakse maknemo filmove koji pripadaju vise zanrova)
+action.movie_title <- action["movie_title"]
+comedy.movie_title <- comedy["movie_title"]
+drama.movie_title <- drama["movie_title"]
+thriller.movie_title <- thriller["movie_title"]
+romance.movie_title <- romance["movie_title"]
+
+#Liste filmova drugih zanrova (ako je ime filma u toj listi onda pripada vise zanrova)
+action.remove_list <- Reduce(union,list(comedy.movie_title, drama.movie_title, thriller.movie_title, romance.movie_title))
+comedy.remove_list <- Reduce(union, list(action.movie_title, drama.movie_title, thriller.movie_title, romance.movie_title))
+drama.remove_list <- Reduce(union, list(action.movie_title, comedy.movie_title, thriller.movie_title, romance.movie_title))
+thriller.remove_list <- Reduce(union, list(action.movie_title, drama.movie_title, comedy.movie_title, romance.movie_title))
+romance.remove_list <- Reduce(union, list(action.movie_title, drama.movie_title, thriller.movie_title, comedy.movie_title))
+
+#Micanje svih filmova iz drugih zanrova iz skupa podataka
+
+action.nez <- action[!(action$movie_title %in% action.remove_list$movie_title), ]
+comedy.nez <- comedy[!(comedy$movie_title %in% comedy.remove_list$movie_title), ]
+drama.nez <- drama[!(drama$movie_title %in% drama.remove_list$movie_title),]
+thriller.nez <- thriller[!(thriller$movie_title %in% thriller.remove_list$movie_title), ]
+romance.nez <- romance[!(romance$movie_title %in% romance.remove_list$movie_title),]
+```
+Nakon transformacija dobili smo filmove koji pripadaju samo jednom žanru, a ne nijednom od ostalih četiri.
+Pogledajmo sada koliko je filmova ostalo koji ne pripadaju ni jednom drugom žanru.
+
+``` {r}
+nrow(action.nez)
+nrow(comedy.nez)
+nrow(drama.nez)
+nrow(thriller.nez)
+nrow(romance.nez)
+```
+Vidimo kako je broj filmova žanra "Romance" dosta manji od ostalih, međutim takvo ponašanje je očekivano s obzirom da većina filmova ovog žanra spada ili u žanr "Comedy" ili žanr "Drama".
+Sada kada smo postigli nezavisnost podataka moramo provjerit normalnost. To ćemo napraviti uz pomoć Lillieforsove inačice KS testa.
+
+``` {r}
+require(nortest)
+
+lillie.test(action.nez$imdb_score)
+lillie.test(comedy.nez$imdb_score)
+lillie.test(drama.nez$imdb_score)
+lillie.test(thriller.nez$imdb_score)
+lillie.test(romance.nez$imdb_score)
+
+```
+Možemo vidjeti kako žanr "Drama" ima jako malu p-vrijednost pa za njega ne možemo pretpostaviti normalnost. Za ostale žanrove na razini značajnosti od 1% vrijedi pretpostavka normalnosti.
+U daljnoj provedbi testa izbacujemo žanr "Drama" iz analize zbog nezadovoljenih pretpostavki testa.
+Sljedeća pretpostavka koja nam je potrebna za analizu je homogenost varijanci svih uzoraka. To ćemo provjeriti uz pomoć Bartlettovog testa koji će zbog prijašnje pretpostavke normalnosti još bolje prikazati rezultate.
+
+``` {r}
+# Pojedinacne varijance svakog zanra
+var(action.nez$imdb_score)
+var(comedy.nez$imdb_score)
+var(thriller.nez$imdb_score)
+var(romance.nez$imdb_score)
+
+# Dodajemo listu ocjena u varijable
+a <- action.nez$imdb_score
+b <- comedy.nez$imdb_score
+c <- thriller.nez$imdb_score
+d <- romance.nez$imdb_score
+
+bartlett.test(list(a,b,c,d))
+
+```
+Vidimo kako Bartlettov test daje p-vrijednost od nešto više od 8% što nam, na razini značajnosti od 1%, dozvoljava da pretpostavimo da su varijance ova 4 žanra jednake.
+Nakon što smo zadovoljili pretpostavke normalnosti, nezavisnosti i homogenosti varijanci uzorka možemo provesti ANOVU sa sljedećim hipotezama: 
+$$ \begin{aligned}
+  H_0 & : \mu_1 = \mu_2 = \mu_3 = \mu_4 \\
+  H_1 & : \neg H_0.
+\end{aligned} $$
+
+``` {r}
+# Sve filmove dodajemo u jednu listu
+allNames <- c(action.nez$movie_title, comedy.nez$movie_title)
+allNames <- c(allNames, romance.nez$movie_title)
+allNames <- c(allNames, thriller.nez$movie_title)
+allGenres <- c("Action", "Comedy", "Thriller", "Romance")
+#Editamo pocetni skup
+edited <- genres_edited[genres_edited$movie_title %in% allNames,]
+edited <- edited[edited$genres %in% allGenres,]
+#Provedba ANOVE
+test <- aov(imdb_score ~ genres, data=edited)
+summary(test)
+```
+Vidimo da je p-vrijednost jako mala te na razini značajnosti od 1% odbacujemo nultu hipotezu i zaključujemo da srednje vrijednosti ocjena za barem dva žanra od žanrova "Action", "Comedy", "Thriller", "Romance" nisu jednake.
+Tako se naša inicijalna pretpostavka o uniformnoj distribuciji srednjih vrijednosti ocjena pokazala netočnom te zaključujemo da postoji značajna razlika u prosječnim ocjenama pojedinih žanrova.
+
+
+#Dobivaju li američki filmovi veća financiranja od filmova drugih zemalja
+
+
+Prebrojimo koliko Američkih filmova za svoj budget ima NA.
+```{r}
+americkiFilmovi <- imdb[imdb$country == "USA",]$budget/1000000
+
+cat("Broj Americkih filmova : ", length(americkiFilmovi), "\n")
+cat("Broj NA vrijednosti: ", sum(is.na(americkiFilmovi)), "\n")
+
+```
+Vidimo da je manje od 20% te cemo te redke sada maknuti.
+```{r}
+americkiFilmovi <- na.omit(americkiFilmovi)
+cat("Broj Americkih filmova bez NA redaka: ", length(americkiFilmovi), "\n")
+```
+
+```{r}
+neAmerickiFilmovi <- imdb[imdb$country != "USA" ,]$budget/1000000
+
+cat("Broj ne Americkih filmova : ", length(neAmerickiFilmovi), "\n")
+cat("Broj NA vrijednosti: ", sum(is.na(neAmerickiFilmovi)), "\n")
+
+```
+Ovdje je takoder tih redaka manje od 20% te cemo te redke takoder sada maknuti.
+
+```{r}
+neAmerickiFilmovi <- na.omit(neAmerickiFilmovi)
+cat("Broj Ne Americkih filmova bez NA redaka: ", length(neAmerickiFilmovi), "\n")
+```
+Maknimo sada outliere iz vektora.
+
+```{r}
+americkiFilmoviOutliers <- boxplot(americkiFilmovi, plot=FALSE)$out
+americkiFilmovi <- americkiFilmovi[-which(americkiFilmovi %in% americkiFilmoviOutliers)]
+
+
+neAmerickiFilmoviOutliers <- boxplot(neAmerickiFilmovi, plot=FALSE)$out
+neAmerickiFilmovi <- neAmerickiFilmovi[-which(neAmerickiFilmovi %in% neAmerickiFilmoviOutliers)]
+
+
+```
+
+Sada ćemo vizualizirati te podatke da vidimo dolaze li iz normalne razdiobe.
+```{r}
+
+qqnorm(americkiFilmovi, pch = 1, frame = FALSE,main='Financiranje Americkih filmova ')
+qqline(americkiFilmovi, col = "blue", lwd = 2)
+
+
+```
+```{r}
+
+qqnorm(neAmerickiFilmovi, pch = 1, frame = FALSE,main='Financiranje Ne Americkih filmova ')
+qqline(neAmerickiFilmovi, col = "blue", lwd = 2)
+
+```
+Vidimo da ove grafovi ne nalikuju na Normalnu razdiobu, no mozda će nalikovati ako na podatke primjenimo logaritamsku funkciju.
+
+```{r}
+logAmericki <- log(americkiFilmovi)
+
+qqnorm(logAmericki, pch = 1, frame = FALSE,main='Financiranje Americkih filmova sa log funkcijom')
+qqline(logAmericki, col = "blue", lwd = 2)
+
+
+```
+
+```{r}
+
+logNeAmericki <- log(neAmerickiFilmovi)
+
+qqnorm(logNeAmericki, pch = 1, frame = FALSE,main='Financiranje Ne Americkih filmova sa log funkcijom')
+qqline(logNeAmericki, col = "blue", lwd = 2)
+
+```
+
+
+Vidimo da ni nakon toga ne nalikuju na normalnu, ali ako bolje proučimo, graf nalikuje na x^3, te ako primjenimo treci korijen, možda će onda podatci biti normalni.
+
+```{r}
+treciKorijenAmericki <- americkiFilmovi ^ (1/3)
+
+qqnorm(treciKorijenAmericki, pch = 1, frame = FALSE,main='Financiranje Americkih filmova sa treci korijen funkcijom')
+qqline(treciKorijenAmericki, col = "blue", lwd = 2)
+
+
+```
+
+```{r}
+
+treciKorijenNeAmericki <- neAmerickiFilmovi ^ (1/3)
+
+qqnorm(treciKorijenNeAmericki, pch = 1, frame = FALSE,main='Financiranje Ne Americkih filmova sa treci korijen funkcijom')
+qqline(treciKorijenNeAmericki, col = "blue", lwd = 2)
+
+```
+
+
+Pogledajmo sada i histograme za te novoskalirane podatke.
+
+```{r}
+
+hist(treciKorijenAmericki,
+        main="Histogram Američkih filmova skaliranih funkcijom 3. korijen",
+        xlab="budžet u milijunima",
+        ylab="frekvencija"
+     )
+
+
+hist(treciKorijenNeAmericki,
+        main="Histogram Američkih filmova filmova skaliranih funkcijom 3. korijen",
+        xlab="budžet u milijunima",
+        ylab="frekvencija"
+     )
+
+```
+Iz grafova vidimo da su distribucije sada poprilično normalne.
+
+
+```{r}
+boxplot(treciKorijenAmericki, treciKorijenNeAmericki,
+        main="Box plot Američih i ne Američkih filmova skaliranih funkcijom 3. korijen",
+        xlab="filmovi",
+        ylab="budžet u milijunima"
+        )
+```
+
+
+
+
+
+
+```{r}
+cat("Srednja vrijednost Američkih Filmova: ", mean(treciKorijenAmericki), "\n")
+cat("Srednja vrijednost ne Američkih Filmova: ", mean(treciKorijenNeAmericki), "\n")
+
+cat("Standardna devijacija Američkih Filmova: ", sd(treciKorijenAmericki), "\n")
+cat("Standardna devijacija ne Američkih Filmova: ", sd(treciKorijenNeAmericki), "\n")
+
+```
+Sada cemo provesti i F test za varijance.
+
+```{r}
+
+var.test(treciKorijenAmericki,treciKorijenNeAmericki)
+
+```
+Iz njega vidimo da je p value skoro pa i 0 te iz toga zaključujemo da se varijance uistinu razlikuju
+
+Sada postavimo hipoteze, H0... Američki filmovi imaju jednak budzet kao i ne Američki -> mi1 = mi2, d0 = 0
+                         H1... Američki filmovi imaju veci budzet -> mi1 > mi2, d0 > 0
+                         alfa = 5%
+```{r}
+
+t.test(treciKorijenAmericki, treciKorijenNeAmericki, alternative = "greater", var.equal = FALSE)
+
+```
+Hipoteza H0 se odbija jer je p vrijednost manja od alfe.
+
+Iz ovog mozemo zaključiti da Americki filmovi imaju veci budežet od ne Američkih filmova, no ovo je bila provjera svih ne Američkih zajedno.
+
+Idemo sada ponoviti isti postupak ali za neku zemlje zasebno, poput UK, izbacimo outliere, te prazne vrijednosti, te skaliramo sa funkcijom 3. korijen.
+
+```{r}
+UKfilmovi <- imdb[imdb$country == "UK",]$budget/1000000
+
+UKfilmovi <- na.omit(UKfilmovi)
+
+UKfilmoviOutliers <- boxplot(UKfilmovi, plot=FALSE)$out
+UKfilmovi <- UKfilmovi[-which(UKfilmovi %in% UKfilmoviOutliers)]
+
+
+UKfilmovi <- UKfilmovi ^ (1/3)
+
+qqnorm(UKfilmovi, pch = 1, frame = FALSE,main='Financiranje UK filmova sa treci korijen funkcijom')
+qqline(UKfilmovi, col = "blue", lwd = 2)
+
+```
+Iz grafa mozemo zaključiti normalnost.
+
+````{r}
+cat("Srednja vrijednost UK Filmova: ", mean(UKfilmovi), "\n")
+cat("Standardna devijacija UK Filmova: ", sd(UKfilmovi), "\n")
+```
+One sliče na vrijednosti koje smo dobili za sve ne americke filmove zajedno, no idemo provesti f test jos jednom za svaki slučaj.
+
+```{r}
+
+var.test(treciKorijenAmericki,UKfilmovi)
+
+```
+Kao što vidimo, opet možemo zaključiti da varijance nisu jednake jer je p vrijednost opet skoro pa jednaka nuli
+Sada postavimo hipoteze, H0... Američki filmovi imaju jednak budžet kao i UK filmovi -> mi1 = mi2, d0 = 0
+                         H1... Američki filmovi imaju veci budžet -> mi1 > mi2, d0 > 0
+                         alfa = 5%
+```{r}
+
+t.test(treciKorijenAmericki, UKfilmovi, alternative = "greater", var.equal = FALSE)
+
+```
+p vrijednost je i u ovom testu značajno manja od alfe te zaključujemo da Američki filmovi dobivaju veći budžet od UK filmova
+
+
+#Možemo li temeljem danih varijabli predvidjeti zaradu filmova? 
+Trebamo provjeriti postoji li veza između ulaznih varijabli (regresora) i izlazne varijable (reakcije) koja je u našem slučaju zarada(gross) filma.
+Za to ćemo koristiti linearnu regresiju. Želimo saznati koliko su te veze jake, koje ulazne varijable najviše utječu na zaradu, te vidjeti možemo li predvidjeti zaradu na temelju nekih ulaznih varijabli i s kojom točnošću.
+Tražimo sve varijable koje bi mogle utjecati na zaradu filma, prvo bez uklanjanja NA vrijednosti i stršečih vrijendosti.
+Zarada je prikazana u milijunima dolara.
+Moramom uzeti u obzir da nisu sve varijable poznate pri izlasku novog filma.
+Prvo ćemo ispitati utjecaj sljedećih varijabli:
+- budžet (budget)
+- trajanje filma (duration)
+- godina izlaska filma (title_year)
+
+
+```{r scatter plots}
+
+plot(imdb$budget,imdb$gross/1000000) 
+
+
+plot(imdb$duration,imdb$gross/1000000)
+
+
+plot(imdb$title_year,imdb$gross/1000000)
+
+
+```
+Utjecaj svake od varijabli na zaradu prikazali smo pomoću scatter plot-a.
+Vidimo da u dosta slučajeva postoje stršeće vrijednosti i NA vrijednosti zbog kojih je teže jasno vidjeti odnos varijabli.
+Radi preglednosti ukloniti ćemo NA vrijednosti i ponoviti postupak.
+
+
+```{r}
+
+imdb0 <- imdb[!is.na(imdb$gross),]
+imdb1 <- imdb0[!is.na(imdb0$budget),]
+imdb2 <- imdb0[!is.na(imdb0$duration),]
+imdb3 <- imdb0[!is.na(imdb0$title_year),]
+
+
+```
+
+```{r scatter plots}
+
+plot(imdb1$budget,imdb1$gross/1000000) 
+
+
+plot(imdb2$duration,imdb2$gross/1000000)
+
+
+plot(imdb3$title_year,imdb3$gross/1000000)
+
+
+```
+Pošto ne vidimo preveliku promjenu, ukloniti ćemo i stršeće vrijednosti.
+
+```{r}
+
+
+outliersgross <- boxplot(imdb1$gross, plot=FALSE)$out
+imdbh1 <- imdb1[-which(imdb1$gross %in% outliersgross),]
+
+outliersgross <- boxplot(imdb2$gross, plot=FALSE)$out
+imdbh2 <- imdb2[-which(imdb2$gross %in% outliersgross),]
+
+outliersgross <- boxplot(imdb3$gross, plot=FALSE)$out
+imdbh3 <- imdb3[-which(imdb3$gross %in% outliersgross),]
+
+outliersbudget <- boxplot(imdbh1$budget, plot=FALSE)$out
+imdb11 <- imdbh1[-which(imdbh1$budget %in% outliersbudget),]
+
+outliersdur <- boxplot(imdbh2$duration, plot=FALSE)$out
+imdb22<- imdbh2[-which(imdbh2$duration %in% outliersdur),]
+
+outliersty <- boxplot(imdbh3$title_year, plot=FALSE)$out
+imdb33 <- imdbh3[-which(imdbh3$title_year %in% outliersty),]
+
+```
+
+
+```{r scatter plots}
+
+plot(imdb11$budget,imdb11$gross/1000000) 
+
+
+plot(imdb22$duration,imdb22$gross/1000000)
+
+
+plot(imdb33$title_year,imdb33$gross/1000000)
+
+
+```
+Primjećujemo da niti jedna od ulaznih varijabli nema jako veliku povezanost, ali npr. budget pokazuje određenu povezanost.
+
+Sada ćemo na dijagrame dodati pravce linearne regresije kako bismo bolje vidjeli efekte varijabli na zaradu.
+
+
+```{r jednostavna regresija}
+
+fit.budget = lm(gross~budget,data=imdb11) 
+
+fit.dur = lm(gross~duration,data=imdb22)
+
+
+fit.ty = lm(gross~title_year,data=imdb33)
+
+
+plot(imdb11$budget,imdb11$gross) 
+lines(imdb11$budget,fit.budget$fitted.values,col='red') 
+
+plot(imdb22$duration,imdb22$gross)
+lines(imdb22$duration,fit.dur$fitted.values,col='red')
+
+
+plot(imdb33$title_year,imdb33$gross)
+lines(imdb33$title_year,fit.ty$fitted.values,col='red')
+
+
+```
+Sada bolje vidimo utjecaje na zaradu, budget ima najveći utjecaj što vidimo po nagibu pravca linearne regresije.
+
+Sada ćemo provjeriti normalnost reziduala za svaki model pomoću kvantil-kvantil plota.
+
+
+```{r}
+
+selected.model = fit.budget
+
+qqnorm(rstandard(selected.model))
+qqline(rstandard(selected.model))
+
+
+selected.model = fit.dur
+
+qqnorm(rstandard(selected.model))
+qqline(rstandard(selected.model))
+
+
+selected.model = fit.ty
+
+qqnorm(rstandard(selected.model))
+qqline(rstandard(selected.model))
+
+
+```
+
+Distribucije donekle nalikuju na normalnu razdiobu, ali sve bi ih trebalo još više približiti normalnoj razdiobi ako želimo pretpostaviti normalnost reziduala.
+Pokušat ćemo to riješiti kasnije doadvanjem drugih varijabli u model te dodavanjem interakcijskih ili polinomijalnih članova.
+
+Pogledat ćemo mjere kvalitete prilagodbe modela podatcima.
+
+```{r analiza procijenjenih modela}
+
+summary(fit.budget)
+
+summary(fit.dur)
+
+summary(fit.ty)
+
+
+```
+
+Za svaki od modela možemo vidjeti intercept i slope, pomoću koji možemo procijeniti zaradu za bilo koju vrijednost ulazne varijable.
+
+
+Primjećujemo da nisu svi modeli jednako kvalitetni. Vidimo da najveći utjecaj ima budget kao što smo i pretpostavili prije, to se očituje najvećim vrijednostima R^2. Vidimo da duration nema utjecaj kao budget ali ima određen značaj, dok za title_year vidimo da nema gotovo nikakav utjecaj (R^2 je skoro 0). 
+
+Pogledajmo i Pearsonov keoficijent korelacije za sljedeće 3 varijable:
+
+```{r korelacijski koeficijent}
+
+
+cor(imdb11$budget,imdb11$gross)
+
+cor(imdb22$duration,imdb22$gross)
+
+cor(imdb33$title_year,imdb33$gross)
+```
+On dodatno potvrđuje veći utjecaj nekih varijabli.
+
+
+Sada ćemo napraviti procjenu modela višestruke regresije. Prije procjene modela višestruke regresije moramo provjeriti da nam varijable nisu međusobno previše korelirane.
+
+```{r cor}
+
+imdbcor <- imdb[!is.na(imdb$gross),]
+imdbcor <- imdbcor[!is.na(imdbcor$budget),]
+imdbcor <- imdbcor[!is.na(imdbcor$duration),]
+imdbcor <- imdbcor[!is.na(imdbcor$title_year),]
+
+cor(cbind(imdbcor$budget,imdbcor$duration,imdbcor$title_year)) 
+
+```
+Vidimo da nam varijable nisu previše korelirane i možemo procijeniti model.
+
+```{r visestruka regresija}
+fit.multi = lm(gross ~ budget + duration + title_year, imdb11)
+summary(fit.multi)
+
+```
+Vidimo da nam ovaj model nije mnogo bolji nego onaj koji sadrži samo buget. Zato ćemo radi jednostavnosti nastaviti s modelom koji sadrži samo budget.
+
+Sada ćemo probati poboljšati model dodavajući kategorijske varijable.
+Kategorijske varijable koje ćemo uzeti u obzir su:
+- color
+- language
+- country
+- content_rating
+- aspect_ratio
+
+```{r}
+
+fit.multi.1 = lm(gross ~ budget + country , imdb11)
+summary(fit.multi.1)
+
+
+
+```
+
+Dodavanjem varijable country model nam se poboljšava, ali u stupcu country se pojavljuje jako puno država, što bi nam zakompliciralo model, a i unos podataka pri procjeni zarade za novi film.
+Pogledajmo koje sve vrijednosti može poprimiti stupac country.
+
+```{r}
+table(imdb11['country'])
+```
+Vidimo da ima uvjerljivo najviše američkih filmova, zato ćemo zbog jednostavnosti zamijeniti sve ostale države s OtherCountry.
+
+```{r}
+imdbcou = imdb11
+imdbcou$country[imdbcou$country!="USA"]<-"OtherCountry"
+table(imdbcou['country'])
+```
+Nakon zamjene isprobajmo novi model:
+
+```{r}
+
+fit.multi.2 = lm(gross ~ budget + country, imdbcou)
+summary(fit.multi.2)
+
+
+
+```
+Model je gotovo jednako dobar što možemo vidjeti po ako usporedimo vrijednosti Adjusted R-squared (prije 0.2677, sada 0.2667).
+
+Isprobajmo sada dodati još neke kategorijske varijable u naš model.
+
+
+
+```{r}
+
+fit.multi.3 = lm(gross ~ budget + country + color, imdbcou)
+summary(fit.multi.3)
+
+```
+Dodavanjem varijable color nismo znatno poboljšali model, zato ćemo odbaciti color.
+
+Prije dodavanja varijable language u model, pogledajmo koje sve vrijednosti postoje u tom stupcu.
+
+```{r}
+table(imdbcou['language'])
+```
+Engleski je očekivano najčešći jezik, zato ćemo sve ostale zamijeniti s OtherLanguage.
+
+```{r}
+imdblan = imdbcou
+imdblan$language[imdblan$language!="English"]<-"OtherLanguage"
+table(imdblan['language'])
+```
+```{r}
+
+fit.multi.lan = lm(gross ~ budget + country + language, imdblan)
+summary(fit.multi.lan)
+
+```
+Ponovno ne vidimo bitno poboljšanje u modelu, ponovit ćemo postupak za ostale kategorijske varijable, kako bismo pronašli najbolji model.
+
+```{r}
+table(imdbcou['content_rating'])
+```
+Mijenjamo sve vrijednosti osim PG, PG-13 i R u OtherRating.
+
+```{r}
+imdbcr = imdblan
+imdbcr$content_rating[imdbcr$content_rating!="R" & imdbcr$content_rating!="PG-13" & imdbcr$content_rating!="PG"]<-"OtherRating"
+table(imdbcr['content_rating'])
+```
+```{r}
+
+fit.multi.cr = lm(gross ~ budget + country + content_rating, imdbcr)
+summary(fit.multi.cr)
+
+```
+Niti dodavanje content_rating-a nam značajno ne poboljšava model.
+
+```{r}
+table(imdbcr['aspect_ratio'])
+```
+Zamijenimo sve vrijednosti aspect_ratio osim 1.85 i 2.35 s OtherRatio.
+
+```{r}
+imdbar = imdbcr
+imdbar$aspect_ratio[imdbar$aspect_ratio!="1.85" & imdbar$aspect_ratio!="2.35"]<-"OtherRatio"
+table(imdbar['aspect_ratio'])
+```
+```{r}
+
+fit.multi.ar = lm(gross ~ budget + country + aspect_ratio, imdbar)
+summary(fit.multi.ar)
+
+```
+Niti ovaj model nije bolji od modela koji samo sadrži budget i country.
+
+Sada ćemo još pokušati transformirati neke varijable i približiti distribuciju reziduala normalnoj distribuciji.
+
+```{r}
+library("SciViews")
+fit.multi.exp = lm(gross ~ budget + country + I(budget^(1/3)), imdbcou)
+summary(fit.multi.exp)
+
+
+
+```
+Primijenili smo transformaciju I(budget^(1/3)) i time smo malo poboljšali model.
+Pogledajmo sada distribuciju reziduala.
+
+```{r}
+selected.model = fit.multi.exp
+hist((selected.model$residuals))
+hist(rstandard(selected.model))
+qqnorm(rstandard(selected.model))
+qqline(rstandard(selected.model))
+```
+Uklonit ćemo još stršećih vrijednosti kako bismo distribuciju reziduala još više približili normalnoj-
+
+
+
+```{r}
+nrow(imdbar)
+outliers00 <- boxplot(imdbar$gross, plot=FALSE)$out
+imdbtry <- imdbar[-which(imdbar$gross %in% outliers00),]
+
+outliers01 <- boxplot(imdbtry$budget, plot=FALSE)$out
+imdbtry <- imdbtry[-which(imdbtry$budget %in% outliers01),]
+
+outliers02 <- boxplot(imdbtry$gross, plot=FALSE)$out
+imdbtry <- imdbtry[-which(imdbtry$gross %in% outliers02),]
+
+outliers03 <- boxplot(imdbtry$budget, plot=FALSE)$out
+imdbtry <- imdbtry[-which(imdbtry$budget %in% outliers03),]
+
+outliers04 <- boxplot(imdbtry$gross, plot=FALSE)$out
+imdbtry <- imdbtry[-which(imdbtry$gross %in% outliers04),]
+
+outliers05 <- boxplot(imdbtry$gross, plot=FALSE)$out
+imdbtry <- imdbtry[-which(imdbtry$gross %in% outliers05),]
+
+outliers06 <- boxplot(imdbtry$gross, plot=FALSE)$out
+imdbtry <- imdbtry[-which(imdbtry$gross %in% outliers06),]
+
+outliers07 <- boxplot(imdbtry$gross, plot=FALSE)$out
+imdbtry <- imdbtry[-which(imdbtry$gross %in% outliers07),]
+
+nrow(imdbtry)
+
+fit.multi.x = lm(gross ~ budget + country + I(budget^(1/3)), imdbtry)
+summary(fit.multi.x)
+
+selected.model = fit.multi.x
+hist((selected.model$residuals))
+hist(rstandard(selected.model))
+qqnorm(rstandard(selected.model))
+qqline(rstandard(selected.model))
+
+
+
+```
+Sada je distribucija nešto bliža normalnoj.
+
+Pogledajmo sada naš model.
+
+```{r}
+
+fit.multi.x = lm(gross ~ budget + country + I(budget^(1/3)), imdbtry)
+summary(fit.multi.x)
+
+```
+Na temelju ovog modela pokušat ćemo predvidjeti zaradu novog filma.
+Naš model sadržava relevantne varijable koje objašnjavaju oko 26% varijance zarade filma. 
+Predviđanjem zarade novog filma vidjet je li tih 26% "dovoljna" vrijednost R^2.
+
+Pošto je ovo stariji dataset, nekih filmova koji su u međuvremenu izašli nema (zadnja godina je 2016), pa na njima možemo ocijeniti model, ali isprobati ćemo i za neke filmove koji nisu ni sada izašli.
+
+1)No time to die
+
+```{r}
+
+input_var <- data.frame(budget = 300000000, country = "USA") 
+linear_model = fit.multi.x
+predict(linear_model, newdata = input_var,interval = "confidence")
+```
+Rezultat koji smo dobili je interval pouzdanosti (95%) i fit predviđena vrijednost.
+Film No time to die je zaradio oko 500 milijuna dolara, što niti blizu ne pada u naš interval pouzdanosti.
+
+Isprobajmo sad s filmom koji ima manji budget.
+
+2) Nobody
+
+```{r}
+
+input_var <- data.frame(budget = 16000000, country = "USA") 
+linear_model = fit.multi.x
+predict(linear_model, newdata = input_var,interval = "confidence")
+```
+Nobody je zapravo zaradio oko 40 milijuna, što opet nije blizu našoj procjeni.
+
+Pokušat ćemo sada s filmom koji nije američki.
+
+3) The Battle at Lake Changjin
+
+Ovo je kineski film s dosta velikim budžetom.
+
+```{r}
+
+input_var <- data.frame(budget = 200000000, country = "OtherCountry") 
+linear_model = fit.multi.x
+predict(linear_model, newdata = input_var,interval = "confidence")
+```
+Prava zarada filma je oko 700-800 milijuna, naš model je opet puno pogriješio.
+
+Sada ćemo probati još probati predvidjeti zaradu nekih filmova koji još nisu izašli.
+
+4) The Batman
+
+```{r}
+
+input_var <- data.frame(budget = 100000000, country = "USA") 
+linear_model = fit.multi.x
+predict(linear_model, newdata = input_var,interval = "confidence")
+```
+
+5) Spiderman: Across the Spiderverse
+
+```{r}
+
+input_var <- data.frame(budget = 90000000, country = "USA") 
+linear_model = fit.multi.x
+predict(linear_model, newdata = input_var,interval = "confidence")
+```
+Zaključujemo da naš model nije dobar za kvalitetnu procjenu zarade novog filma, trebao bi nam model s većim R^2. Takav bolji model bismo dobili dodavanjem varijabli koje više utječu na zaradu, a te varijable nam često nisu dostupne prije samog izlaska filma ili su prekomplicirane za napraviti model s njima (npr glumci u filmu sigurno imaju veliki utjecaj na zaradu ali pošto ima jako puno glumaca, teže je napraviti model). Osim toga treba uzeti u obzir da na zaradu utječu i druge varijable osim ovih koje su prikazane u ovom datasetu.
