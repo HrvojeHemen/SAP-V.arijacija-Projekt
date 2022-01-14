@@ -48,10 +48,10 @@ Radi preglednosti ukloniti ćemo NA vrijednosti i ponoviti postupak.
 
 ```{r}
 
-imdb <- imdb[!is.na(imdb$gross),]
-imdb1 <- imdb[!is.na(imdb$budget),]
-imdb2 <- imdb[!is.na(imdb$duration),]
-imdb3 <- imdb[!is.na(imdb$title_year),]
+imdb0 <- imdb[!is.na(imdb$gross),]
+imdb1 <- imdb0[!is.na(imdb0$budget),]
+imdb2 <- imdb0[!is.na(imdb0$duration),]
+imdb3 <- imdb0[!is.na(imdb0$title_year),]
 
 
 ```
@@ -160,8 +160,8 @@ qqline(rstandard(selected.model))
 
 ```
 
-Distribucije donekle nalikuju na normalnu razdiobu, no neke krivulje su malo previše zakrivljene.
-Pokušat ćemo to riješiti kasnije ddoavanjem drugih varijabli u model te dodavanjem interakcijskih ili polinomijalnih članova.
+Distribucije donekle nalikuju na normalnu razdiobu, ali sve bi ih trebalo još više približiti normalnoj razdiobi ako želimo pretpostaviti normalnost reziduala.
+Pokušat ćemo to riješiti kasnije doadvanjem drugih varijabli u model te dodavanjem interakcijskih ili polinomijalnih članova.
 
 Pogledat ćemo mjere kvalitete prilagodbe modela podatcima.
 
@@ -176,7 +176,7 @@ summary(fit.ty)
 
 ```
 
-Za svaki od modela možemo vidjeti interceot i slope, pomoću koji možemo procijeniti zaradu za bilo koju vrijednost ulazne varijable.
+Za svaki od modela možemo vidjeti intercept i slope, pomoću koji možemo procijeniti zaradu za bilo koju vrijednost ulazne varijable.
 
 
 Primjećujemo da nisu svi modeli jednako kvalitetni. Vidimo da najveći utjecaj ima budget kao što smo i pretpostavili prije, to se očituje najvećim vrijednostima R^2. Vidimo da duration nema utjecaj kao budget ali ima određen značaj, dok za title_year vidimo da nema gotovo nikakav utjecaj (R^2 je skoro 0). 
@@ -366,9 +366,6 @@ imdbtry <- imdbtry[-which(imdbtry$budget %in% outliers03),]
 
 outliers04 <- boxplot(imdbtry$gross, plot=FALSE)$out
 imdbtry <- imdbtry[-which(imdbtry$gross %in% outliers04),]
-
-# outliers05 <- boxplot(imdbtry$budget, plot=FALSE)$out
-# imdbtry <- imdbtry[-which(imdbtry$budget %in% outliers05),]
 
 outliers05 <- boxplot(imdbtry$gross, plot=FALSE)$out
 imdbtry <- imdbtry[-which(imdbtry$gross %in% outliers05),]
