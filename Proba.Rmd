@@ -14,33 +14,17 @@ library(tidyr)
 
 ```
 
-```{r scatter plots}
 
-plot(imdb$movie_facebook_likes,imdb$director_facebook_likes) 
-
-
-plot(imdb$movie_facebook_likes,imdb$actor_1_facebook_likes)
+Sada ćemo pogledati postoji li povezanost između Facebook like-ova redatelja i glavnog glumca s like-ovima filma.
+Prvo ćemo izbaciti NA vrijednosti i stršeće vrijednosti.
 
 
 
-```
 ```{r}
 
 imdb0 <- imdb[!is.na(imdb$movie_facebook_likes),]
 imdb1 <- imdb0[!is.na(imdb0$director_facebook_likes),]
 imdb2 <- imdb0[!is.na(imdb0$actor_1_facebook_likes),]
-
-
-
-```
-
-
-```{r scatter plots}
-
-plot(imdb$movie_facebook_likes,imdb$director_facebook_likes) 
-
-
-plot(imdb$movie_facebook_likes,imdb$actor_1_facebook_likes)
 
 
 
@@ -101,7 +85,8 @@ lines(imdb22$actor_1_facebook_likes,fit.2$fitted.values,col='red')
 
 
 ```
-
+Iz scatter plotova vidimo da povezanosti gotovo i nema.
+Napravit ćemo i kvantil-kvantil plotove kako bismo vidjeli razdiobu reziduala.
 
 ```{r}
 
@@ -118,8 +103,9 @@ qqline(rstandard(selected.model))
 
 ```
 
+Primjećujemo da razdiobe nisu niti blizu normalnoj.
 
-
+Pogledajmo još mjere kvalitete prilagodbe modela podatcima.
 
 ```{r analiza procijenjenih modela}
 
@@ -132,7 +118,7 @@ summary(fit.ty)
 
 ```
 
-
+Obje vrijednosti R^2 su jako male što nam dodatno pokazuje koliko je mala povezanost između varijabli.
 
 
 
