@@ -1,0 +1,778 @@
+---
+title: 'Projekt iz kolegija Statistička analiza podataka: Analiza filmova na IMDb-u'
+author: "V.arijacija"
+date: '13 01 2022 '
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+imdb <- read.csv(file = 'IMDB.csv')
+library(tidyr)
+library(tidyverse)
+library(modeest)
+```
+
+#Uvod
+
+U ovom projektu analiziramo skup podataka o filmovima sa stranice IMDb. Podatke, koji se nalaze u CSV datoteci IMDB.csv, učitali smo u varijablu imdb. Pogledajmo kako izgleda naš set podataka - koje su mu dimenzije, kako se zovu njegove varijable i kojeg su tipa podataka.
+
+```{r}
+# Dimenzije tablice podataka
+
+cat("No. of rows:", nrow(imdb), '\n')
+cat("No. of columns:", ncol(imdb), '\n')
+
+# Imena i tipovi varijabli
+
+cat("\nVariables and their types:\n\n")
+sapply(imdb, class)
+```
+
+Naš set podataka ima 5043 redaka (unosa) i 28 stupaca (varijabli).
+
+Varijable su sljedeće:
+
+  - movie_title - naslov filma
+  - director_name - ime redatlja filma
+  - title_year - godina premijere filma
+  - actor_1_name - ime glumca br. 1
+  - actor_2_name - ime glumca br. 2
+  - actor_3_name - ime glumca br. 3
+  - genres - žanrovi kojima film pripada odvojeni znakom '|'
+  - content_rating - MPAA oznaka filma
+  - plot_keywords - ključne riječi koje opisuju radnju filma odvojene znakom '|'
+  - duration - trajanje filma u minutama
+  - language - jezik filma
+  - country - država u kojoj je produciran film
+  - budget - budžet filma u dolarima
+  - gross - zarada filma u dolarima
+  - color - informacija je li film crno-bijeli ili u boji
+  - aspect_ratio - format filma
+  - facenumber_in_poster - broj glumaca koji su prikazani na posteru filma
+  - movie_imdb_link - poveznica na IMDB stranicu filma
+  - imdb_score - IMDB-ova ocjena filma
+  - num_critic_for_reviews - broj filmskih kritičara koji su recenzirali film
+  - num_voted_users - broj korisnika IMDB-a koji su glasali za film
+  - num_user_for_reviews - broj korisnika IMDB-a koji su recenzirali film
+  - movie_facebook_likes - ukupan broj Facebook lajkova koje je film dobio
+  - director_facebook_likes - broj Facebook lajkova na Facebook stranici direktora
+  - actor_1_facebook_likes - broj Facebook lajkova na Facebook stranici glumca br. 1
+  - actor_2_facebook_likes - broj Facebook lajkova na Facebook stranici glumca br. 2
+  - actor_3_facebook_likes - broj Facebook lajkova na Facebook stranici glumca br. 3
+  - cast_total_facebook_likes - ukupan broj Facebook lajkova sa Facebook stranica svih glumaca iz postave filma
+
+Uočavamo da metrički podaci čine većinu našeg skupa podataka, npr. varijable duration, budget, gross i sl. Neke od kategorijskih varijabli su movie_title, director_name, genres itd. Varijabla movie_imdb_link za nas nema značaj pa ćemo je maknuti iz našeg seta podataka.
+
+```{r}
+# Izbacivanje "movie_imdb_link"
+
+imdb <- imdb[-c(18)]
+dim(imdb)
+```
+
+
+Pogledajmo koliki postotak nepostojećih vrijednosti imaju preostale varijable.
+
+```{r}
+# NA vrijednosti
+
+for (variable in names(imdb)) {
+  nas = sum(is.na(imdb[variable]))
+  p = round(nas / nrow(imdb) * 100, 2)
+
+  cat(variable, ":", nas, '(', p, '%)\n')
+}
+```
+
+Većina stupaca sadrži jako malo nepostojećih vrijednosti osim stupca sa zaradom filmova koji sadrži 884 nepostojeće vrijednosti što je gotovo 20% ukupnog broja filmova te zaključci koje bismo donijeli na temelju tih podataka ne bi najbolje prikazivali stvarnu sliku.
+
+
+
+#Deskriptivna statistika
+
+##Kategorijske varijable
+
+###Varijabla genres
+
+Za varijablu genres već smo ranije utvrdili da nema nedostajućih vrijednosti, stoga ne moramo paziti na te vrijednosti pri radu s podacima. 
+
+Prvo moramo svaki redak razdvojiti na više njih ovisno o njegovom broju žanrova.
+
+```{r}
+# Separacija žanrova
+
+imdb_sep_bygenres <- separate_rows(imdb, genres, sep = "\\|")
+```
+
+Najprije pogledajmo koliko je različitih žanrova te koji je najzastupljeniji, a koji je najmanje zastupljen.
+
+```{r}
+occurences = imdb_sep_bygenres$genres
+occurences_df = as.data.frame(table(occurences))
+colnames(occurences_df) = c('genre', 'occurences')
+occurences_df = occurences_df[order(occurences_df$occurences, decreasing = TRUE), ]
+
+cat("No. of Genres:", nrow(occurences_df))
+
+
+par(mar=c(7.5, 4.1, 4.1, 2.1), font.axis = 2, font.lab =  2)
+
+# Stupčasti dijagram
+
+barplot(height = occurences_df$occurences,
+        names.arg = occurences_df$genre,
+        main = "No. of Films by Genre",
+        ylab = "No. of Films",
+        las = 2, col = "Lightblue")
+```
+
+U našoj tablici podataka pojavljuje se ukupno 26 različitih žanrova. Žanr s najviše snimljenih filmova jest "Drama". Također, primijećujemo da žanrovi "Film-Noir", Short", "News", "Reality-TV" i "Game-Show" jako mali broj snimljenih filmova u odnosu na ostatak žanrova te zato odbacujemo ove žanrove iz daljnje analize zbog premalog broja podataka.
+
+```{r}
+# Izbacivanje vrijednosti "Film-Noir", "Short", "News", "Reality-TV" i "Game-Show"
+
+tbd <- c('Film-Noir', 'Short', 'News', 'Reality-TV', 'Game-Show')
+imdb_sep_bygenres <- imdb_sep_bygenres[!(imdb_sep_bygenres$genres %in% tbd), ]
+```
+
+
+###Varijabla plot_keywords
+
+Za varijablu plot_keywords već smo ranije utvrdili da ima 153 nedostajuće vrijednosti, stoga moramo pripaziti da te vrijednosti isključimo iz analize ključnih riječi.
+
+Prvo moramo svaki redak razdvojiti na više njih ovisno o njegovom broju ključnih riječi.
+
+```{r}
+# Separacija ključnih riječi
+
+imdb_sep_bykeywords <- separate_rows(imdb[imdb$plot_keywords != '', ], plot_keywords, sep = "\\|")
+```
+
+Najprije pogledajmo koliko je različitih ključnih riječi te koji su najzastupljenije.
+
+```{r}
+occurences = imdb_sep_bykeywords$plot_keywords
+occurences_df = as.data.frame(table(occurences))
+colnames(occurences_df) = c('keyword', 'occurences')
+occurences_df = occurences_df[order(occurences_df$occurences, decreasing = TRUE), ]
+
+cat("No. of rows:", nrow(occurences_df))
+
+
+par(mar=c(7.5, 4.1, 4.1, 2.1), font.axis = 2, font.lab =  2)
+
+# Stupčasti dijagram
+
+barplot(height = occurences_df[1:20, "occurences"],
+        names.arg = occurences_df[1:20, "keyword"],
+        main = "No. of Mentions of a Keyword",
+        ylab = "No. of Mentions",
+        las = 2, col = "Lightblue")
+```
+
+U našoj tablici podataka pojavljuje se ukupno 8086 različitih ključnih riječi. Tri najzastupljenije ključne riječi su "love", "friend" i "murder", što i ima smisla ako se prisjetimo da je najzastupljeniji žanr filmova drama.
+
+
+###Varijabla country
+
+Pogledajmo koliko je različitih država te u kojoj je državi producirano najviše filmova, pritom zanemarujemo nedostajuće vrijednosti.
+
+```{r}
+occurences = imdb[!is.na(imdb$country), "country"]
+occurences_df = as.data.frame(table(occurences))
+colnames(occurences_df) = c('country', 'occurences')
+occurences_df = occurences_df[order(occurences_df$occurences, decreasing = TRUE), ]
+
+cat("No. of rows:", nrow(occurences_df))
+
+
+par(mar=c(7.5, 4.1, 4.1, 2.1), font.axis = 2, font.lab =  2)
+
+# Stupčasti dijagram
+
+barplot(height = occurences_df[1:10, "occurences"],
+        names.arg = occurences_df[1:10, "country"],
+        main = "No. of Films per Country",
+        ylab = "No. of Films",
+        las = 2, col = "Lightblue")
+```
+
+Ukupno je 66 različitih država, pri čemu je SAD daleko najzastupljeniji, što je razumljivo s obzirom na razvijenost filmske industrije u SAD-u.
+
+Pogledajmo koliko je točno filmova snimljeno u SAD-u.
+
+```{r}
+n = occurences_df[occurences_df$country == 'USA', 'occurences']
+p = n / nrow(imdb) * 100
+
+cat("No. of films produced in USA:", n, "(", p, "%)")
+```
+
+Kako vrijednost "USA" sačinjava i više od 75% svih podataka, ova nam varijabla ne daje toliku raznolikost podataka. Zato ćemo u daljnjoj analizi filmove razdvajati na američke i neameričke.
+
+
+##Metričke varijable
+
+###Varijabla title_year
+
+Pogledajmo kako se ponaša varijabla title_year.
+
+```{r}
+summary(imdb$title_year)
+```
+
+Najstariji zabilježeni film je iz 1916. godine, a "najmlađi" je iz 2016. "Mlađa" polovica filmova imala je premijeru u periodu između 2005. i 2016. godine, dok je interval za drugu polovicu filmova dug gotovo 90 godina. To zapažanje ima smisla s obzirom na razvoj filmske industrije od samih početaka pa sve do danas.
+
+Također, možemo opaziti da je medijan veći od aritmetičke sredine iz čega možemo pretpostaviti da je distribucija lijevo (negativno) zakrivljena. Tu tvrdnju možemo potvrditi i histogramom.
+
+```{r}
+par(mar=c(7.5, 4.1, 4.1, 2.1), font.axis = 2, font.lab =  2)
+
+# Histogram
+
+hist(imdb$title_year,
+     main="Title Year Histogram",
+     xlab="Year",
+     ylab='Frequency',
+     breaks = 20, col="lightblue")
+```
+
+
+###Varijabla duration
+
+Prvo ćemo pogledati histogram i pravokutni dijagram.
+
+```{r}
+par(mar=c(7.5, 4.1, 4.1, 2.1), font.axis = 2, font.lab =  2)
+
+# Histogram
+
+hist(imdb$duration,
+     breaks=20,
+     main="Film's duration in minutes",
+     xlab="Duration (min)",
+     ylab='Frequency',
+     col = 'lightblue')
+
+# Pravokutni dijagram
+
+boxplot(imdb$duration,
+        main="Box and whisker plot for duration",
+        ylab="Duration (min)")
+
+
+```
+
+Možemo vidjeti kako ovaj skup podataka i nije baš najzahvalniji za prikaz pomoću stupčastog dijagrama jer je rang ovog skupa podataka dosta velik te imamo jako puno stršećih vrijednosti. Međutim možemo pretpostaviti kako ova distribucija nalikuje na multimodalnu.
+
+```{r}
+# Rang
+
+cat("Rang:", max(imdb[(!is.na(imdb$duration)), 'duration']) - min(imdb[(!is.na(imdb$duration)), 'duration']))
+```
+
+Pogledajmo sada mjere centra.
+```{r}
+
+# Medijan
+cat("Median:", median(imdb[(!is.na(imdb$duration)), 'duration']),"\n")
+
+# Podrezana aritmetička sredina s uklanjanjem po 10% najmanjih i najvecih podataka
+cat("10% trimmed mean:", mean(imdb[(!is.na(imdb$duration)), 'duration'], trim=0.1), "\n")
+
+# Aritmeticka sredina
+cat("Mean:", mean(imdb[(!is.na(imdb$duration)), 'duration']),"\n")
+
+# Mod
+require(modeest)
+cat("Mod:", mfv(imdb[(!is.na(imdb$duration)), 'duration']),"\n")
+
+```
+Zbog velikog broja stršećih vrijednosti najbolji pokazatelj centra je mod koji je robusan i neosjetljiv na ekstreme kojih u ovom skupu podataka ima jako mnogo.
+
+Nadalje pogledajmo mjere rasipanja.
+
+```{r}
+# IQR
+cat("IQR:", IQR(imdb[(!is.na(imdb$duration)), 'duration']),"\n")
+
+# Varijanca
+cat("Variance:", var(imdb[(!is.na(imdb$duration)), 'duration']),"\n")
+
+# Standardna devijacija
+cat("Standard deviation:", sd(imdb[(!is.na(imdb$duration)), 'duration']),"\n")
+
+# Koeficijent varijacije
+cat("Variation coefficient:", sd(imdb[(!is.na(imdb$duration)), 'duration'])/mean(imdb[(!is.na(imdb$duration)), 'duration']),"\n")
+
+```
+
+Ovdje je zanimljivo pogledati interkvartilni rang koji je izuzetno mali u odnosu na rang cijelog skupa podataka. Iznosi tek 25 što je i očekivano
+s obzirom da većina filmova traje od otprlike 90 do 120 minuta. Upravo odavdje dolazi velik broj stršećih vrijednosti.
+
+Pronađimo još najkraći i najdulji film te njihova trajanja.
+
+```{r}
+# Uređivanje naslova filma
+
+for (i in 1:nrow(imdb)) {
+  row = imdb[i, 'movie_title']
+  imdb[i, 'movie_title'] <- str_split(row, 'Â')[[1]][1]
+}
+
+# Najkraći i najdulji film
+
+lenmin = min(imdb[(!is.na(imdb$duration)), 'duration'])
+lenmax = max(imdb[(!is.na(imdb$duration)), 'duration'])
+
+moviemin = imdb[(!is.na(imdb$duration)) & (imdb$duration == lenmin), 'movie_title']
+moviemax = imdb[(!is.na(imdb$duration)) & (imdb$duration == lenmax), 'movie_title']
+
+cat('The shortest movie in dataset:\n', moviemin, '\nlasts:', lenmin, 'minutes\n')
+cat('\nThe longest movie in dataset:\n', moviemax, '\nlasts:', lenmax, 'minutes\n')
+```
+
+Primjećujemo da dva filma dijele titulu najkraćeg filma: "Shaun the Sheep" i "The Touch", a najdulji film je "Trapped" koji traje više od 8 sati (vjerojatno je riječ o mini-seriji).
+
+
+##Varijabla budget
+
+Varijabla budget ima 492 nedostajuće vrijednosti pa moramo pripraziti da ih ne uključimo u daljnju analizu.
+
+Prvo ćemo pogledati histogram i pravokutni dijagram.
+
+```{r}
+# Histogram
+
+hist(imdb$budget,
+     breaks=20,
+     main="Film's budget in dollars",
+     xlab="Budget (dollars)",
+     ylab='Frequency',
+     col = 'lightblue')
+
+# Pravokutni dijagram
+
+boxplot(imdb$budget,
+        main="Box and whisker plot for budget",
+        ylab="Budget (dollars)")
+
+```
+
+```{r}
+# Rang
+
+cat("Rang:", max(imdb[(!is.na(imdb$budget)), 'budget']) - min(imdb[(!is.na(imdb$budget)), 'budget']))
+```
+
+Pogledajmo sada mjere centra.
+```{r}
+
+# Medijan
+cat("Median:", median(imdb[(!is.na(imdb$budget)), 'budget']),"\n")
+
+# Podrezana aritmetička sredina s uklanjanjem po 10% najmanjih i najvecih podataka
+cat("10% trimmed mean:", mean(imdb[(!is.na(imdb$budget)), 'budget'], trim=0.1), "\n")
+
+# Aritmeticka sredina
+cat("Mean:", mean(imdb[(!is.na(imdb$budget)), 'budget']),"\n")
+
+# Mod
+require(modeest)
+cat("Mod:", mfv(imdb[(!is.na(imdb$budget)), 'budget']),"\n")
+
+```
+
+```{r}
+# IQR
+cat("IQR:", IQR(imdb[(!is.na(imdb$budget)), 'budget']),"\n")
+
+# Varijanca
+cat("Variance:", var(imdb[(!is.na(imdb$budget)), 'budget']),"\n")
+
+# Standardna devijacija
+cat("Standard deviation:", sd(imdb[(!is.na(imdb$budget)), 'budget']),"\n")
+
+# Koeficijent varijacije
+cat("Variation coefficient:", sd(imdb[(!is.na(imdb$budget)), 'budget'])/mean(imdb[(!is.na(imdb$budget)), 'budget']),"\n")
+
+```
+
+
+##Varijabla gross
+Prvo ćemo pogledati histogram i pravokutni dijagram.
+
+```{r}
+# Histogram
+
+hist(imdb$gross,
+     breaks=20,
+     main="Film's gross in dollars",
+     xlab="Gross (dollars)",
+     ylab='Frequency' )
+
+# Pravokutni dijagram
+
+boxplot(imdb$gross,
+        main="Box and whisker plot for gross",
+        ylab="Gross (dollars)")
+
+```
+
+```{r}
+# Rang
+
+cat("Rang:", max(imdb[(!is.na(imdb$gross)), 'gross']) - min(imdb[(!is.na(imdb$gross)), 'gross']))
+```
+
+Pogledajmo sada mjere centra.
+```{r}
+
+# Medijan
+cat("Median:", median(imdb[(!is.na(imdb$gross)), 'gross']),"\n")
+
+# Podrezana aritmetička sredina s uklanjanjem po 10% najmanjih i najvecih podataka
+cat("10% trimmed mean:", mean(imdb[(!is.na(imdb$gross)), 'gross'], trim=0.1), "\n")
+
+# Aritmeticka sredina
+cat("Mean:", mean(imdb[(!is.na(imdb$gross)), 'gross']),"\n")
+
+# Mod
+require(modeest)
+cat("Mod:", mfv(imdb[(!is.na(imdb$gross)), 'gross']),"\n")
+
+```
+
+```{r}
+# IQR
+cat("IQR:", IQR(imdb[(!is.na(imdb$gross)), 'gross']),"\n")
+
+# Varijanca
+cat("Variance:", var(imdb[(!is.na(imdb$gross)), 'gross']),"\n")
+
+# Standardna devijacija
+cat("Standard deviation:", sd(imdb[(!is.na(imdb$gross)), 'gross']),"\n")
+
+# Koeficijent varijacije
+cat("Variation coefficient:", sd(imdb[(!is.na(imdb$gross)), 'gross'])/mean(imdb[(!is.na(imdb$gross)), 'gross']),"\n")
+
+```
+
+
+##Varijabla imdb_score
+
+Prethodno smo uvidjeli da varijabla imdb_score nema nedostajućih vrijednoti.
+
+Pogledajmo prvo histogram i pravokutni dijagram.
+
+```{r}
+# Histogram
+
+hist(imdb$imdb_score,
+     breaks=20,
+     main="Film's IMDB Score",
+     xlab="Score",
+     ylab='Frequency',
+     col = 'lightblue')
+
+# Pravokutni dijagram
+
+boxplot(imdb$imdb_score,
+        main="Box and whisker plot for IMDB Score",
+        ylab="Score")
+
+
+```
+
+Pogledajmo prosječne ocjene uz pojedini žanr. Za mjeru centra koristili smo aritmetičku sredinu. 
+
+```{r}
+
+imdb_sep_bygenres %>% group_by(genres) %>% summarise(AVG_imdb_rating = mean(imdb_score)) -> summary.result.avg
+
+##postavljanje podataka na barplot
+data_bar <- summary.result.avg$AVG_imdb_rating
+names(data_bar) <- summary.result.avg$genres
+
+##uredjivanje margina
+par(mar=c(7.5, 4.1, 4.1, 2.1), font.axis = 2, font.lab =  2)
+
+barplot(data_bar, 
+        main="Prosječna ocjena filmova za pojedine žanrove",
+        ylab = "Prosječna ocjena [0-10]",
+        las = 2, col="lightblue")
+```
+
+Gore dobiveni dijagram jako podsjeća na uniformnu distribuciju. Pogledajmo sada standardne devijacije za pojedini žanr.
+
+```{r}
+imdb_sep_bygenres %>% group_by(genres) %>% summarise(AVG_imdb_rating = sd(imdb_score)) -> summary.result.sd
+
+data_bar <- summary.result.sd$AVG_imdb_rating
+names(data_bar) <- summary.result.sd$genres
+
+par(mar=c(7.5, 4.1, 4.1, 2.1), font.axis = 2, font.lab =  2)
+
+barplot(data_bar, 
+        main="Standardna devijacija ocjena filmova za pojedine žanrove",
+        ylab = "Standardna devijacija",
+        las = 2, col="lightblue")
+
+```
+
+Vidimo kako samo žanr "Biography" značajnije odstupa od drugih standardnih varijacija, no i dalje možemo pretpostaviti kako se radi o uniformnoj distribuciji.
+
+
+##Varijable movie_facebook_likes, director_facebook_likes, actor_1_facebook_likes, actor_2_facebook_likes, actor_3_facebook_likes, cast_total_facebook_likes
+
+Prethodno smo uočili da je broj lajkova koje je dobio film zabilježen za svaki unos (redak) u  tablici podataka. Isto vrijedi i za broj lajkova koje je dobila cjelokupna glumačka postava. Broj nezabilježenih unosa lajkova glavnih glumaca redom iznose: 7 (~0.14%) za prvog glumca, 13 (~0.26%) za drugog glumca te 23 (0.46%) za trećeg glumca. Najveći broj nedostajućih vrijednosti ima stupac lajkova koje je dobio redatelj - 104 (~2.12%).
+
+Riječ je o jako malim udjelima pa možemo maknuti sve retke u kojima barem jedan od tih stupaca ima nedostajaću vrijednost.
+
+```{r}
+likesdata <- imdb[!(is.na(imdb$movie_facebook_likes)
+                      | is.na(imdb$director_facebook_likes)
+                      | is.na(imdb$actor_1_facebook_likes)
+                      | is.na(imdb$actor_2_facebook_likes)
+                      | is.na(imdb$actor_3_facebook_likes)
+                      | is.na(imdb$cast_total_facebook_likes)), ]
+
+cat('No. of entries:', nrow(likesdata), '\n')
+```
+
+Nova tablica bez nedostajućih vrijednosti ima 4797 redaka, što je oko 97% od ukupnog broja redaka stare tablice podataka. Uklonili smo gotovo nezamjetan broj redaka.
+
+Sada kada smo uklonili nedostajuće vrijednosti, pogledajmo kako se ponašaju te varijable.
+
+```{r}
+summary(likesdata[c('movie_facebook_likes', 'director_facebook_likes', 'actor_1_facebook_likes', 'actor_2_facebook_likes', 'actor_3_facebook_likes', 'cast_total_facebook_likes')])
+
+cat('\nIQR(Movie Facebook Likes) =', IQR(likesdata$movie_facebook_likes), '\n')
+cat('sd(Movie Facebook Likes) =', sd(likesdata$movie_facebook_likes), '\n')
+
+cat('\nIQR(Director Facebook Likes) =', IQR(likesdata$director_facebook_likes), '\n')
+cat('sd(Director Facebook Likes) =', sd(likesdata$director_facebook_likes), '\n')
+
+cat('\nIQR(Actor1 Facebook Likes) =', IQR(likesdata$actor_1_facebook_likes), '\n')
+cat('sd(Actor1 Facebook Likes) =', sd(likesdata$actor_1_facebook_likes), '\n')
+
+cat('\nIQR(Actor2 Facebook Likes) =', IQR(likesdata$actor_2_facebook_likes), '\n')
+cat('sd(Actor2 Facebook Likes) =', sd(likesdata$actor_2_facebook_likes), '\n')
+
+cat('\nIQR(Actor3 Facebook Likes) =', IQR(likesdata$actor_3_facebook_likes), '\n')
+cat('sd(Actor3 Facebook Likes) =', sd(likesdata$actor_3_facebook_likes), '\n')
+
+cat('\nIQR(Cast Total Facebook Likes) =', IQR(likesdata$cast_total_facebook_likes), '\n')
+cat('sd(Cast Total Facebook Likes) =', sd(likesdata$cast_total_facebook_likes), '\n')
+```
+Uočavamo da je minimum svih varijabli 0 lajkova, što je samo po sebi logično jer broj lajkova ne može biti negativan. Maksimume varijabli brojimo u desetinama i stotinama tisuća.
+
+Kod varijable 'movie_facebook_likes' uočavamo da je barem 25% podataka jednako nuli. Prebrojimo koliko ih je točno jednako nuli.
+
+```{r}
+nrow(likesdata[likesdata$movie_facebook_likes == 0, ])
+```
+
+Dakle, 2083 (~43%) redaka u stupcu 'movie_facebook_likes' jednako je nuli. To je zaista velik udio podataka pa je za pretpostaviti da će distribucija biti desno zakrivljena, što nam dodatno potvrđuje i činjenica da je aritmetička sredina višestruko veća od medijana, vrijednosti od koje je točno polovica podataka manja. Štoviše, sredina je zamjetno veća i od trećeg kvartila, što bi značilo da su u gornjoj četvrtini podaci dovoljno veliki da bi 'nadvladali' ostatak. Drugim riječima, postoji nekolicina filmova sa zabilježenim iznimno velikim brojem lajkova s obzirom na većinu filmova. Moguće je da je riječ o grešci ili je neki film doživio ekstremnu popularnost među korisnicima Facebooka. Slična zapažanja mogu se primijeniti i na ostale varijable.
+
+Interkvartilni rang i standardna devijacija su mjere raspršenosti podataka, no interkvartilni rang je za razliku od standardne devijacije neosjetljiv na ekstreme. Od svih promatranih varijabli, najviše odskače upravo varijabla 'movie_facebook_likes', koja u usporedbi s drugim varijablama ima osrednji rang, no zato ima najveću standardnu devijaciju, po čemu bismo mogli pretpostaviti da ima najviše stršećih vrijednosti.
+
+Vizualizirajmo ponašanje promatranih varijabli korištenjem pravokutnog dijagrama.
+
+```{r}
+# Pravokutni dijagrami
+
+boxplot(likesdata$movie_facebook_likes,
+        main = 'Movie Facebook Likes Boxplot',
+        ylab = 'Facebook Likes')
+
+boxplot(likesdata$director_facebook_likes,
+        main = 'Director Facebook Likes Boxplot',
+        ylab = 'Facebook Likes')
+
+boxplot(likesdata$actor_1_facebook_likes,
+        main = 'Actor1 Facebook Likes Boxplot',
+        ylab = 'Facebook Likes')
+
+boxplot(likesdata$actor_2_facebook_likes,
+        main = 'Actor2 Facebook Likes Boxplot',
+        ylab = 'Facebook Likes')
+
+boxplot(likesdata$actor_3_facebook_likes,
+        main = 'Actor3 Facebook Likes Boxplot',
+        ylab = 'Facebook Likes')
+
+boxplot(likesdata$cast_total_facebook_likes,
+        main = 'Cast Total Facebook Likes Boxplot',
+        ylab = 'Facebook Likes')
+```
+
+Grafovi nam ne daju toliko informacija o ponašanju podataka jer je raspon stršećih vrijednosti prevelik da bi se dobro vidio ostatak distribucije, no grafom smo uspjeli potvrditi da varijabla 'movie_facebook_likes' doista ima najviše stršećih vrijednosti.
+
+Nadalje, pogledajmo distribucije promatranih varijabli:
+
+```{r}
+# Histogrami
+
+h = hist(likesdata$movie_facebook_likes,
+         main="Movie Facebook Likes",
+         xlab="Facebook Likes",
+         ylab='Frequency',
+         col="blue"
+         )
+abline(v = mean(likesdata$movie_facebook_likes, na.rm = TRUE), col = "red", lwd = 4)
+abline(v = median(likesdata$movie_facebook_likes, na.rm = TRUE), col = "green", lwd = 4)
+
+h = hist(likesdata$director_facebook_likes,
+         main="Director Facebook Likes",
+         xlab="Facebook Likes",
+         ylab='Frequency',
+         col="blue"
+         )
+abline(v = mean(likesdata$director_facebook_likes, na.rm = TRUE), col = "red", lwd = 4)
+abline(v = median(likesdata$director_facebook_likes, na.rm = TRUE), col = "green", lwd = 4)
+
+h = hist(likesdata$actor_1_facebook_likes,
+         main="Actor1 Facebook Likes",
+         xlab="Facebook Likes",
+         ylab='Frequency',
+         col="blue"
+         )
+abline(v = mean(likesdata$actor_1_facebook_likes, na.rm = TRUE), col = "red", lwd = 4)
+abline(v = median(likesdata$actor_1_facebook_likes, na.rm = TRUE), col = "green", lwd = 4)
+
+h = hist(likesdata$actor_2_facebook_likes,
+         main="Actor2 Facebook Likes",
+         xlab="Facebook Likes",
+         ylab='Frequency',
+         col="blue"
+         )
+abline(v = mean(likesdata$actor_2_facebook_likes, na.rm = TRUE), col = "red", lwd = 4)
+abline(v = median(likesdata$actor_2_facebook_likes, na.rm = TRUE), col = "green", lwd = 4)
+
+h = hist(likesdata$actor_3_facebook_likes,
+         main="Actor3 Facebook Likes",
+         xlab="Facebook Likes",
+         ylab='Frequency',
+         col="blue"
+         )
+abline(v = mean(likesdata$actor_3_facebook_likes, na.rm = TRUE), col = "red", lwd = 4)
+abline(v = median(likesdata$actor_3_facebook_likes, na.rm = TRUE), col = "green", lwd = 4)
+
+h = hist(likesdata$cast_total_facebook_likes,
+         main="Cast Total Facebook Likes",
+         xlab="Facebook Likes",
+         ylab='Frequency',
+         col="blue"
+         )
+abline(v = mean(likesdata$cast_total_facebook_likes, na.rm = TRUE), col = "red", lwd = 4)
+abline(v = median(likesdata$cast_total_facebook_likes, na.rm = TRUE), col = "green", lwd = 4)
+```
+
+Baš kako smo i pretpostavili, distribucije varijabli su desno zakrivljene.
+
+Sami histogrami nisu nam toliko korisni u ovom obliku jer se većina vrijednosti mjeri u stotinama, stoga skalirajmo podatke prirodnim logaritmom.
+
+```{r}
+# Histogrami (log)
+
+h = hist(log(likesdata$movie_facebook_likes),
+         axes = FALSE,
+         main="Movie Facebook Likes (log)",
+         xlab="Facebook Likes",
+         ylab='Frequency',
+         breaks = 20, col="blue"
+         )
+axis(side = 1,
+     at = log(c(1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000)),
+     labels = paste(c(1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000)),
+     cex.axis = 0.75,
+     padj = -1,
+     hadj = 0.5,
+     las = 1)
+axis(2)
+
+h = hist(log(likesdata$director_facebook_likes),
+         axes = FALSE,
+         main="Director Facebook Likes (log)",
+         xlab="Facebook Likes",
+         ylab='Frequency',
+         breaks = 20, col="blue"
+         )
+axis(side = 1,
+     at = log(c(1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000)),
+     labels = paste(c(1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000)),
+     cex.axis = 0.75,
+     padj = -1,
+     hadj = 0.5,
+     las = 1)
+axis(2)
+
+h = hist(log(likesdata$actor_1_facebook_likes),
+         axes = FALSE,
+         main="Actor1 Facebook Likes (log)",
+         xlab="Facebook Likes",
+         ylab='Frequency',
+         breaks = 20, col="blue"
+         )
+axis(side = 1,
+     at = log(c(1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000)),
+     labels = paste(c(1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000)),
+     cex.axis = 0.75,
+     padj = -1,
+     hadj = 0.5,
+     las = 1)
+axis(2)
+
+h = hist(log(likesdata$actor_2_facebook_likes),
+         axes = FALSE,
+         main="Actor2 Facebook Likes (log)",
+         xlab="Facebook Likes",
+         ylab='Frequency',
+         breaks = 20, col="blue"
+         )
+axis(side = 1,
+     at = log(c(1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000)),
+     labels = paste(c(1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000)),
+     cex.axis = 0.75,
+     padj = -1,
+     hadj = 0.5,
+     las = 1)
+axis(2)
+
+h = hist(log(likesdata$actor_3_facebook_likes),
+         axes = FALSE,
+         main="Actor3 Facebook Likes (log)",
+         xlab="Facebook Likes",
+         ylab='Frequency',
+         breaks = 20, col="blue"
+         )
+axis(side = 1,
+     at = log(c(1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000)),
+     labels = paste(c(1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000)),
+     cex.axis = 0.75,
+     padj = -1,
+     hadj = 0.5,
+     las = 1)
+axis(2)
+
+h = hist(log(likesdata$cast_total_facebook_likes),
+         axes = FALSE,
+         main="Cast Total Facebook Likes (log)",
+         xlab="Facebook Likes",
+         ylab='Frequency',
+         breaks = 20, col="blue"
+         )
+axis(side = 1,
+     at = log(c(1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000)),
+     labels = paste(c(1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000)),
+     cex.axis = 0.75,
+     padj = -1,
+     hadj = 0.5,
+     las = 1)
+axis(2)
+```
+
+Ovi nam histogrami puno jasnije prikazuju distribucije promatranih varijabli. Distribucije su višemodalne. Većina ih ima najviše pojava u intervalu između 500 i 1000 lajkova te zatim oko 10 000 lajkova. Distribucija varijable 'director_facebook_likes' bila bi najbliža normalnoj distribuciji da nema stršećih vrijednosti koje se nakupljaju između vrijednosti 10 000 i 50 000 lajkova.

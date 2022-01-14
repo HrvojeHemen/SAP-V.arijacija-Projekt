@@ -409,3 +409,19 @@ Vidimo da je žanr s najvećim prosječnim brojem lajkova SF, dok dokumentarci u
 cat('Sci-Fi:', max(genre_likes$AVG_facebook_likes), '\n')
 cat('Documentary:', min(genre_likes$AVG_facebook_likes), '\n')
 ```
+
+##Facebook lajkovi filma vs IMDB score
+
+```{r}
+plot(likesdata$imdb_score, likesdata$movie_facebook_likes)
+
+fit.imdb_score = lm(movie_facebook_likes~imdb_score, data = likesdata)
+plot(likesdata$imdb_score, likesdata$movie_facebook_likes)
+lines(likesdata$imdb_score, fit.imdb_score$fitted.values, col = 'red')
+
+selected.model = fit.imdb_score
+hist(rstandard(selected.model))
+qqnorm(rstandard(selected.model))
+qqline(rstandard(selected.model))
+
+```
