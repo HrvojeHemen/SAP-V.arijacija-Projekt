@@ -14,7 +14,7 @@ library(tidyverse)
 library(modeest)
 ```
 
-#Uvod
+# Uvod
 
 U ovom projektu analiziramo skup podataka o filmovima sa stranice IMDb. Podatke, koji se nalaze u CSV datoteci IMDB.csv, učitali smo u varijablu imdb. Pogledajmo kako izgleda naš set podataka - koje su mu dimenzije, kako se zovu njegove varijable i kojeg su tipa podataka.
 
@@ -90,11 +90,11 @@ Većina stupaca sadrži jako malo nepostojećih vrijednosti osim stupca sa zarad
 
 
 
-#Deskriptivna statistika
+# Deskriptivna statistika
 
-##Kategorijske varijable
+## Kategorijske varijable
 
-###Varijabla genres
+### Varijabla genres
 
 Za varijablu genres već smo ranije utvrdili da nema nedostajućih vrijednosti, stoga ne moramo paziti na te vrijednosti pri radu s podacima. 
 
@@ -138,7 +138,7 @@ genres_edited <- imdb_sep_bygenres[!(imdb_sep_bygenres$genres %in% tbd), ]
 ```
 
 
-###Varijabla plot_keywords
+### Varijabla plot_keywords
 
 Za varijablu plot_keywords već smo ranije utvrdili da ima 153 nedostajuće vrijednosti, stoga moramo pripaziti da te vrijednosti isključimo iz analize ključnih riječi.
 
@@ -175,7 +175,7 @@ barplot(height = occurences_df[1:20, "occurences"],
 U našoj tablici podataka pojavljuje se ukupno 8086 različitih ključnih riječi. Tri najzastupljenije ključne riječi su "love", "friend" i "murder", što i ima smisla ako se prisjetimo da je najzastupljeniji žanr filmova drama.
 
 
-###Varijabla country
+### Varijabla country
 
 Pogledajmo koliko je različitih država te u kojoj je državi producirano najviše filmova, pritom zanemarujemo nedostajuće vrijednosti.
 
@@ -213,9 +213,9 @@ cat("No. of films produced in USA:", n, "(", p, "%)")
 Kako vrijednost "USA" sačinjava i više od 75% svih podataka, ova nam varijabla ne daje toliku raznolikost podataka. Zato ćemo u daljnjoj analizi filmove razdvajati na američke i neameričke.
 
 
-##Metričke varijable
+## Metričke varijable
 
-###Varijabla title_year
+### Varijabla title_year
 
 Pogledajmo kako se ponaša varijabla title_year.
 
@@ -240,7 +240,7 @@ hist(imdb$title_year,
 ```
 
 
-###Varijabla duration
+### Varijabla duration
 
 Prvo ćemo pogledati histogram i pravokutni dijagram.
 
@@ -337,7 +337,7 @@ cat('\nThe longest movie in dataset:\n', moviemax, '\nlasts:', lenmax, 'minutes\
 Primjećujemo da dva filma dijele titulu najkraćeg filma: "Shaun the Sheep" i "The Touch", a najdulji film je "Trapped" koji traje više od 8 sati (vjerojatno je riječ o mini-seriji).
 
 
-##Varijabla budget
+### Varijabla budget
 
 Varijabla budget ima 492 nedostajuće vrijednosti pa moramo pripraziti da ih ne uključimo u daljnju analizu.
 
@@ -367,7 +367,9 @@ boxplot(imdb$budget,
 cat("Rang:", max(imdb[(!is.na(imdb$budget)), 'budget']) - min(imdb[(!is.na(imdb$budget)), 'budget']))
 ```
 
-Pogledajmo sada mjere centra.
+Rang distribucije budžeta filmova je jako velik te imamo povelik broj stršećih vrijednosti, zbog čega ne možemo puno zaključiti iz histograma.
+
+Pogledajmo mjere centra.
 ```{r}
 
 # Medijan
@@ -385,23 +387,33 @@ cat("Mod:", mfv(imdb[(!is.na(imdb$budget)), 'budget']),"\n")
 
 ```
 
+Uočavamo da su medijan i mod jednaki i "blizu" vrijednosti podrezane aritemtičke sredine. Dakle, distribucija bi mogla nalikovati normalnoj distribuciji.
+
+Skalirajmo podatke prirodnim logaritmom.
+
 ```{r}
-# IQR
-cat("IQR:", IQR(imdb[(!is.na(imdb$budget)), 'budget']),"\n")
+# Histogram (log)
 
-# Varijanca
-cat("Variance:", var(imdb[(!is.na(imdb$budget)), 'budget']),"\n")
-
-# Standardna devijacija
-cat("Standard deviation:", sd(imdb[(!is.na(imdb$budget)), 'budget']),"\n")
-
-# Koeficijent varijacije
-cat("Variation coefficient:", sd(imdb[(!is.na(imdb$budget)), 'budget'])/mean(imdb[(!is.na(imdb$budget)), 'budget']),"\n")
-
+h = hist(log(imdb$budget),
+         axes = FALSE,
+         main="Film's budget in dollars (log)",
+         xlab="Budget (dollars)",
+         ylab='Frequency',
+         breaks = 20, col="lightblue")
+ axis(side = 1,
+     at = log(c(100, 500, 5000, 50000, 500000, 5000000, 50000000, 500000000, 5000000000, 50000000000)),
+     labels = paste(c(100, 500, 5000, 50000, 500000, 5000000, 50000000, 500000000, 5000000000, 50000000000)),
+     cex.axis = 0.75,
+     padj = -1,
+     hadj = 0.5,
+     las = 1)
+axis(2)
 ```
 
+Sada puno bolje možemo vidjeti distribuciju budžeta. Distribucija nalikuje normalnoj, no malo je zakrivljena u lijevo.
 
-##Varijabla gross
+
+### Varijabla gross
 Prvo ćemo pogledati histogram i pravokutni dijagram.
 
 ```{r}
@@ -427,7 +439,10 @@ boxplot(imdb$gross,
 cat("Rang:", max(imdb[(!is.na(imdb$gross)), 'gross']) - min(imdb[(!is.na(imdb$gross)), 'gross']))
 ```
 
-Pogledajmo sada mjere centra.
+Slično kao i kod budžeta, imamo veliki rang i pozamašan broj stršećih vrijednosti.
+
+Pogledajmo mjere centra.
+
 ```{r}
 
 # Medijan
@@ -445,23 +460,31 @@ cat("Mod:", mfv(imdb[(!is.na(imdb$gross)), 'gross']),"\n")
 
 ```
 
+Medijan i podrezana aritmetička sredina su također naoko "blizu" pa bismo mogli i ovdje skalirati podatke prirodnim logaritmom kako bismo bolje vizualizirali podatke.
+
 ```{r}
-# IQR
-cat("IQR:", IQR(imdb[(!is.na(imdb$gross)), 'gross']),"\n")
 
-# Varijanca
-cat("Variance:", var(imdb[(!is.na(imdb$gross)), 'gross']),"\n")
-
-# Standardna devijacija
-cat("Standard deviation:", sd(imdb[(!is.na(imdb$gross)), 'gross']),"\n")
-
-# Koeficijent varijacije
-cat("Variation coefficient:", sd(imdb[(!is.na(imdb$gross)), 'gross'])/mean(imdb[(!is.na(imdb$gross)), 'gross']),"\n")
+h = hist(log(imdb$gross),
+         axes = FALSE,
+         main="Film's gross in dollars (log)",
+         xlab="Gross (dollars)",
+         ylab='Frequency',
+         breaks = 20, col="lightblue")
+ axis(side = 1,
+     at = log(c(100, 500, 5000, 50000, 500000, 5000000, 50000000, 500000000, 5000000000, 50000000000)),
+     labels = paste(c(100, 500, 5000, 50000, 500000, 5000000, 50000000, 500000000, 5000000000, 50000000000)),
+     cex.axis = 0.75,
+     padj = -1,
+     hadj = 0.5,
+     las = 1)
+axis(2)
 
 ```
 
+Sada svakako bolje vidimo kako su distribuirani podaci o zaradi filmova. Vidimo da je riječ o lijevo (negativno) zakrivljenoj distribuciji.
 
-##Varijabla imdb_score
+
+### Varijabla imdb_score
 
 Prethodno smo uvidjeli da varijabla imdb_score nema nedostajućih vrijednoti.
 
@@ -525,7 +548,7 @@ barplot(data_bar,
 Vidimo kako samo žanr "Biography" značajnije odstupa od drugih standardnih varijacija, no i dalje možemo pretpostaviti kako se radi o uniformnoj distribuciji.
 
 
-##Varijable movie_facebook_likes, director_facebook_likes, actor_1_facebook_likes, actor_2_facebook_likes, actor_3_facebook_likes, cast_total_facebook_likes
+## Varijable movie_facebook_likes, director_facebook_likes, actor_1_facebook_likes, actor_2_facebook_likes, actor_3_facebook_likes, cast_total_facebook_likes
 
 Prethodno smo uočili da je broj lajkova koje je dobio film zabilježen za svaki unos (redak) u  tablici podataka. Isto vrijedi i za broj lajkova koje je dobila cjelokupna glumačka postava. Broj nezabilježenih unosa lajkova glavnih glumaca redom iznose: 7 (~0.14%) za prvog glumca, 13 (~0.26%) za drugog glumca te 23 (0.46%) za trećeg glumca. Najveći broj nedostajućih vrijednosti ima stupac lajkova koje je dobio redatelj - 104 (~2.12%).
 
@@ -778,6 +801,103 @@ axis(2)
 Ovi nam histogrami puno jasnije prikazuju distribucije promatranih varijabli. Distribucije su višemodalne. Većina ih ima najviše pojava u intervalu između 500 i 1000 lajkova te zatim oko 10 000 lajkova. Distribucija varijable 'director_facebook_likes' bila bi najbliža normalnoj distribuciji da nema stršećih vrijednosti koje se nakupljaju između vrijednosti 10 000 i 50 000 lajkova.
 
 
+## Prosječni broj Facebook lajkova po žanru
+
+Zanima nas kakva je prosječna raspodjela lajkova po žanrovima. Ideja je grupirati filmove po žanrovima i prema lajkovima filmova dobiti prosječan broj lajkova žanra. Kako jedan film može imati više žanrova, prvo ćemo ih morati razdvojiti.
+
+```{r}
+genres_edited %>% group_by(genres) %>% summarise(AVG_facebook_likes = round(mean(movie_facebook_likes))) -> genre_likes
+
+par(mar=c(7.5, 4.1, 4.1, 2.1), font.axis = 2, font.lab =  2)
+barplot(genre_likes$AVG_facebook_likes,
+        names.arg = genre_likes$genres,
+        main = 'Average No. of Facebook Likes by Genre',
+        las = 2, col = 'blue')
+```
+
+Vidimo da je žanr s najvećim prosječnim brojem lajkova SF, dok dokumentarci u prosjeku dobivaju najmanje lajkova. Pogledajmo koji su točni iznosi:
+```{r}
+cat('Sci-Fi:', max(genre_likes$AVG_facebook_likes), '\n')
+cat('Documentary:', min(genre_likes$AVG_facebook_likes), '\n')
+```
+
+
+## Jesu li povezani lajkovi lajkovi filma i lajkovi redatelja i glavnog glumca?
+
+Pogledajmo postoji li povezanost između broja Facebook lajkova koje je dobio film i broja Facebook lajkova redatelja i glavnog glumca. Prvo ćemo izbaciti stršeće vrijednosti.
+
+```{r}
+# Outlieri
+
+outliersgross <- boxplot(likesdata$movie_facebook_likes, plot=FALSE)$out
+imdb1 <- likesdata[-which(likesdata$movie_facebook_likes %in% outliersgross),]
+
+outliersgross <- boxplot(likesdata$gross, plot=FALSE)$out
+imdb2 <- likesdata[-which(likesdata$gross %in% outliersgross),]
+
+outliersbudget <- boxplot(imdb1$director_facebook_likes, plot=FALSE)$out
+imdb11 <- imdb1[-which(imdb1$director_facebook_likes %in% outliersbudget),]
+
+outliersdur <- boxplot(imdb2$actor_1_facebook_likes, plot=FALSE)$out
+imdb22<- imdb2[-which(imdb2$actor_1_facebook_likes %in% outliersdur),]
+
+```
+
+```{r}
+
+plot(imdb11$movie_facebook_likes,imdb11$director_facebook_likes) 
+
+plot(imdb22$movie_facebook_likes,imdb22$actor_1_facebook_likes)
+
+```
+
+```{r}
+
+fit.1 = lm(movie_facebook_likes~director_facebook_likes,data=imdb11) 
+
+fit.2 = lm(movie_facebook_likes~actor_1_facebook_likes,data=imdb22)
+
+
+plot(imdb11$director_facebook_likes,imdb11$movie_facebook_likes) 
+lines(imdb11$director_facebook_likes,fit.1$fitted.values,col='red') 
+
+plot(imdb22$actor_1_facebook_likes,imdb22$movie_facebook_likes)
+lines(imdb22$actor_1_facebook_likes,fit.2$fitted.values,col='red')
+
+```
+
+Iz scatter plotova vidimo da povezanosti gotovo i nema. Napravit ćemo i kvantil-kvantil plotove kako bismo vidjeli razdiobu reziduala.
+
+```{r}
+
+selected.model = fit.1
+
+qqnorm(rstandard(selected.model))
+qqline(rstandard(selected.model))
+
+
+selected.model = fit.2
+
+qqnorm(rstandard(selected.model))
+qqline(rstandard(selected.model))
+
+```
+
+Primjećujemo da razdiobe nisu niti blizu normalnoj.
+
+Pogledajmo još mjere kvalitete prilagodbe modela podatcima.
+
+```{r}
+
+summary(fit.1)
+
+summary(fit.2)
+
+```
+
+Obje vrijednosti R^2 su jako male što nam dodatno pokazuje koliko je mala povezanost između varijabli.
+
+
 ## Imaju li neki žanrovi značajno različite ocjene na IMDB-u?
 Kod ove hipoteze zanima nas postoji li neka značajna razlika kod ocjena različitih žanrova na IMDB-u.
 U nastavku ćemo testirati našu hipotezu. Promtoriti ćemo prosječne ocjene kod filmova koji pripadaju žanrovima "Biography" i "Horror".
@@ -969,7 +1089,7 @@ Vidimo da je p-vrijednost jako mala te na razini značajnosti od 1% odbacujemo n
 Tako se naša inicijalna pretpostavka o uniformnoj distribuciji srednjih vrijednosti ocjena pokazala netočnom te zaključujemo da postoji značajna razlika u prosječnim ocjenama pojedinih žanrova.
 
 
-#Dobivaju li američki filmovi veća financiranja od filmova drugih zemalja
+## Dobivaju li američki filmovi veća financiranja od filmova drugih zemalja
 
 
 Prebrojimo koliko Američkih filmova za svoj budget ima NA.
@@ -1173,7 +1293,7 @@ t.test(treciKorijenAmericki, UKfilmovi, alternative = "greater", var.equal = FAL
 p vrijednost je i u ovom testu značajno manja od alfe te zaključujemo da Američki filmovi dobivaju veći budžet od UK filmova
 
 
-#Možemo li temeljem danih varijabli predvidjeti zaradu filmova? 
+## Možemo li temeljem danih varijabli predvidjeti zaradu filmova? 
 Trebamo provjeriti postoji li veza između ulaznih varijabli (regresora) i izlazne varijable (reakcije) koja je u našem slučaju zarada(gross) filma.
 Za to ćemo koristiti linearnu regresiju. Želimo saznati koliko su te veze jake, koje ulazne varijable najviše utječu na zaradu, te vidjeti možemo li predvidjeti zaradu na temelju nekih ulaznih varijabli i s kojom točnošću.
 Tražimo sve varijable koje bi mogle utjecati na zaradu filma, prvo bez uklanjanja NA vrijednosti i stršečih vrijendosti.
