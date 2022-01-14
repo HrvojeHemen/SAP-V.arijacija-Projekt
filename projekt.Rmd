@@ -134,7 +134,7 @@ U našoj tablici podataka pojavljuje se ukupno 26 različitih žanrova. Žanr s 
 # Izbacivanje vrijednosti "Film-Noir", "Short", "News", "Reality-TV" i "Game-Show"
 
 tbd <- c('Film-Noir', 'Short', 'News', 'Reality-TV', 'Game-Show')
-imdb_sep_bygenres <- imdb_sep_bygenres[!(imdb_sep_bygenres$genres %in% tbd), ]
+genres_edited <- imdb_sep_bygenres[!(imdb_sep_bygenres$genres %in% tbd), ]
 ```
 
 
@@ -787,8 +787,8 @@ biography <- genres_edited[genres_edited$genres=="Biography",]
 horror <- genres_edited[genres_edited$genres=="Horror",]
 
 #Izdvajamo samo stupce sa zanrovima, imenima filmova i ocjenama
-biography <- biography[c(10,12,26)]
-horror <- horror[c(10,12,26)]
+biography <- biography[c(10,12,25)]
+horror <- horror[c(10,12,25)]
 
 ##Provjera postoje li filmovi koji su ujedno i Biography i Horror
 biography.movie_titles <- biography["movie_title"]
@@ -1150,7 +1150,7 @@ qqline(UKfilmovi, col = "blue", lwd = 2)
 ```
 Iz grafa mozemo zaključiti normalnost.
 
-````{r}
+```{r}
 cat("Srednja vrijednost UK Filmova: ", mean(UKfilmovi), "\n")
 cat("Standardna devijacija UK Filmova: ", sd(UKfilmovi), "\n")
 ```
@@ -1185,7 +1185,7 @@ Prvo ćemo ispitati utjecaj sljedećih varijabli:
 - godina izlaska filma (title_year)
 
 
-```{r scatter plots}
+```{r}
 
 plot(imdb$budget,imdb$gross/1000000) 
 
@@ -1212,7 +1212,7 @@ imdb3 <- imdb0[!is.na(imdb0$title_year),]
 
 ```
 
-```{r scatter plots}
+```{r scatter plots 2}
 
 plot(imdb1$budget,imdb1$gross/1000000) 
 
